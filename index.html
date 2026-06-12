@@ -1,0 +1,2217 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>スマート乗換ナビ</title>
+    <style>
+        body, .container, .time-header, .section, .navi-card, .compass-box, select, .mode-btn {
+            transition: background 0.4s ease, backdrop-filter 0.4s ease, border-color 0.4s ease, color 0.4s ease;
+        }
+
+        /* 明るく透明感のあるすりガラス */
+        body.glass-theme {
+            background: linear-gradient(135deg, #b8d48e, #c8e09e, #d8ecb4);
+            color: #1e293b;
+            min-height: 100vh;
+        }
+        body.glass-theme .container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 18px;
+            background: rgba(255, 255, 255, 0.45);
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 10px 32px rgba(30, 41, 59, 0.15);
+        }
+        body.glass-theme .app-header { border-bottom: 1px solid rgba(255, 255, 255, 0.5); color: #0369a1; }
+        body.glass-theme .time-header { background: rgba(254, 243, 199, 0.6); border: 1px solid #d97706; }
+        body.glass-theme .time-alert { color: #b45309; }
+        body.glass-theme .schedule-details { background: rgba(255, 255, 255, 0.5); color: #334155; border: 1px solid rgba(0,0,0,0.1); }
+        body.glass-theme .section { background: rgba(255, 255, 255, 0.4); border: 1px solid rgba(255, 255, 255, 0.5); }
+        body.glass-theme .title { color: #0369a1; }
+        body.glass-theme select { background: rgba(255, 255, 255, 0.7); border: 1px solid rgba(0, 0, 0, 0.15); color: #1e293b; }
+        body.glass-theme .mode-btn { background: rgba(255, 255, 255, 0.5); border: 1px solid rgba(0, 0, 0, 0.15); color: #475569; }
+        body.glass-theme .mode-btn.active { background: #059669; color: white; border-color: #047857; }
+        body.glass-theme .info-btn { background: rgba(255, 255, 255, 0.6); border: 1px solid rgba(3, 105, 161, 0.3); color: #0369a1; }
+        body.glass-theme .info-btn.active { background: #0284c7; color: white; }
+        body.glass-theme .compass-box { background: rgba(255, 255, 255, 0.6); border: 1px solid rgba(0, 0, 0, 0.15); }
+        body.glass-theme .target-comment { color: #b45309; }
+        body.glass-theme .compass-comment { color: #0284c7; }
+        body.glass-theme .navi-card { background: rgba(254, 249, 195, 0.7); border: 1px solid #ca8a04; border-left: 5px solid #eab308; color: #713f12; }
+
+        /* 基本ダークモード */
+        body { font-family: -apple-system, 'Hiragino Sans', sans-serif; text-align: center; background: #121212; color: #e0e0e0; overflow-x: hidden; margin: 0; padding: 18px; font-size: 17px; box-sizing: border-box; }
+        .container { max-width: 400px; margin: 0 auto; background: #1e1e1e; padding: 15px; border-radius: 18px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #2d2d2d; }
+        .app-header { font-size: 1.05rem; font-weight: bold; color: #4dadf7; text-align: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #2d2d2d; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+        .app-header > span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        /* 駅の情報エリア（常時表示用） */
+        .time-header { background: #2b1b1b; border: 1px solid #e8590c; padding: 12px; border-radius: 8px; text-align: left; margin-bottom: 15px; }
+        .time-alert { font-size: 1.3rem; font-weight: bold; color: #ff922b; text-align: center; margin-bottom: 5px; }
+        .schedule-details { font-size: 1.15rem; color: #ced4da; background: #252525; padding: 8px; border-radius: 5px; margin-top: 5px; }
+        
+        .section { background: #1a2634; padding: 12px; border-radius: 8px; text-align: left; margin-bottom: 15px; border: 1px solid #233953; }
+        .title { font-weight: bold; color: #4dadf7; margin-bottom: 8px; font-size: 1.2rem; }
+        
+        .select-row-all { display: flex; gap: 6px; flex-wrap: wrap; }
+        .select-row-all select { flex: 1; padding: 8px 4px; border: 1px solid #383838; border-radius: 6px; font-size: 1.05rem; background: #252525; color: #fff; min-width: 0; }
+        
+        .mode-container { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; justify-content: center; }
+        .mode-btn { flex: 1; min-width: 100px; padding: 12px 10px; background: #2d2d2d; border: 1px solid #4a4a4a; border-radius: 8px; font-size: 1.05rem; font-weight: bold; cursor: pointer; color: #ced4da; }
+        .mode-btn.active { background: #0ca678; color: white; border-color: #2b8a3e; }
+        
+        /* お弁当・お土産ボタンの横並び用 */
+        .info-container { display: flex; gap: 8px; }
+        .info-btn { flex: 1; padding: 8px; background: #232d38; border: 1px solid #3b5bdb; border-radius: 6px; font-size: 1.15rem; font-weight: bold; cursor: pointer; color: #70b5f9; }
+        .info-btn.active { background: #3b5bdb; color: white; }
+
+        .target-comment { font-size: 1.1rem; font-weight: bold; color: #ff922b; margin-top: 15px; text-align: center; }
+        .compass-box { width: 85px; height: 85px; margin: 10px auto 5px auto; border-radius: 50%; background: #252525; border: 2px solid #495057; position: relative; display: flex; align-items: center; justify-content: center; }
+        .north-mark { position: absolute; top: 3px; font-weight: bold; color: #ff6b6b; font-size: 1.15rem; }
+        .arrow { font-size: 3rem; color: #339af0; transition: transform 0.2s ease-out; font-weight: bold; }
+        .compass-comment { font-size: 1.2rem; font-weight: bold; color: #4dadf7; margin-bottom: 15px; text-align: center; }
+        
+        .navi-card { padding: 12px; border-radius: 8px; text-align: left; font-size: 1.05rem; line-height: 1.4; background: #2b281a; border: 1px solid #423d27; border-left: 5px solid #fcc419; color: #fff3bf; }
+
+        /* スイッチUI */
+        .switch-label { font-size: 0.75rem; color: #868e96; display: flex; align-items: center; gap: 5px; cursor: pointer; }
+        .toggle-input { display: none; }
+        .toggle-btn { width: 44px; height: 22px; background: #343a40; border-radius: 11px; position: relative; display: inline-block; }
+        .toggle-btn::after { content: ''; width: 18px; height: 18px; background: #fff; border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: transform 0.3s; }
+        .toggle-input:checked + .toggle-btn { background: #0284c7; }
+        .toggle-input:checked + .toggle-btn::after { transform: translateX(22px); }
+
+        /* === 追加：ホテル道案内ボタンと別画面（モーダル）のスタイル === */
+        .hotel-section { margin-top: 15px; text-align: center; }
+        .hotel-launch-btn { width: 100%; padding: 12px; background: #eab308; color: #1e293b; border: none; border-radius: 8px; font-size: 1.4rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(234, 179, 8, 0.3); transition: background 0.2s; }
+        body.glass-theme .hotel-launch-btn { background: #eab308; color: #1e293b; }
+        .hotel-launch-btn:hover { background: #ca8a04; }
+
+        /* 電波状況バー */
+        #networkBar {
+            display: flex; align-items: center; gap: 8px;
+            padding: 7px 14px; font-size: 0.85rem; font-weight: 600;
+            border-radius: 8px; margin-bottom: 10px; transition: all 0.4s;
+        }
+        #networkBar.online  { background: rgba(34,197,94,0.25); color: #fff; border: 1px solid rgba(34,197,94,0.5); }
+        #networkBar.offline { background: rgba(239,68,68,0.25); color: #fff; border: 1px solid rgba(239,68,68,0.5); }
+        body.glass-theme #networkBar.online  { background: rgba(34,197,94,0.20); color: #14532d; }
+        body.glass-theme #networkBar.offline { background: rgba(239,68,68,0.20); color: #7f1d1d; }
+        .network-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        #networkBar.online  .network-dot { background: #22c55e; box-shadow: 0 0 6px #22c55e; animation: netpulse 2s infinite; }
+        #networkBar.offline .network-dot { background: #ef4444; }
+        @keyframes netpulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+        .hotel-offline-note { font-size: 0.82rem; color: #ef4444; text-align:center; margin-top:6px; display:none; font-weight:600; }
+
+        /* 観光スポット画面 */
+        .spot-card {
+            display: flex; align-items: center; gap: 12px;
+            background: #1e1e1e; border: 1px solid #2d2d2d;
+            border-radius: 12px; padding: 12px 14px;
+            margin-bottom: 8px; cursor: pointer;
+            transition: background 0.15s, border-color 0.15s;
+        }
+        body.glass-theme .spot-card {
+            background: rgba(255,255,255,0.88); border-color: rgba(0,0,0,0.1);
+        }
+        .spot-card:active { transform: scale(0.98); }
+        .spot-card.active { border-color: #4dadf7; }
+        body.glass-theme .spot-card.active { border-color: #0284c7; }
+        .spot-rank {
+            font-size: 0.7rem; font-weight: 700; color: #888;
+            min-width: 28px; text-align: center;
+        }
+        .spot-emoji {
+            font-size: 2rem; flex-shrink: 0; width: 44px; text-align: center;
+        }
+        .spot-info { flex: 1; min-width: 0; }
+        .spot-name { font-size: 1rem; font-weight: 700; margin-bottom: 2px; }
+        body.glass-theme .spot-name { color: #1a1a2e; }
+        .spot-meta { display: flex; gap: 6px; align-items: center; }
+        .spot-area { font-size: 0.72rem; color: #888; }
+        .spot-tag {
+            font-size: 0.65rem; padding: 2px 6px; border-radius: 10px;
+            background: rgba(255,255,255,0.1); color: #aaa;
+        }
+        body.glass-theme .spot-tag { background: rgba(0,0,0,0.08); color: #555; }
+        .spot-arrow { font-size: 1.2rem; color: #555; flex-shrink: 0; }
+
+        /* 詳細パネル */
+        .spot-detail-panel {
+            background: #1e1e1e; border: 1px solid #3a3a3a;
+            border-radius: 14px; padding: 16px; margin-bottom: 8px;
+        }
+        body.glass-theme .spot-detail-panel {
+            background: rgba(255,255,255,0.95); border-color: rgba(0,0,0,0.1);
+        }
+        .spot-detail-header {
+            display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+        }
+        .spot-detail-emoji { font-size: 2.4rem; }
+        .spot-detail-title { font-size: 1.1rem; font-weight: 700; }
+        body.glass-theme .spot-detail-title { color: #1a1a2e; }
+        .spot-detail-desc {
+            font-size: 0.85rem; color: #aaa; margin-bottom: 12px; line-height: 1.6;
+        }
+        body.glass-theme .spot-detail-desc { color: #444; }
+        .spot-detail-section {
+            margin-bottom: 10px; padding: 10px 12px;
+            background: rgba(255,255,255,0.05); border-radius: 8px;
+        }
+        body.glass-theme .spot-detail-section { background: rgba(0,0,0,0.04); }
+        .spot-detail-label {
+            font-size: 0.72rem; color: #888; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;
+        }
+        .spot-detail-value { font-size: 0.85rem; color: #ddd; line-height: 1.5; }
+        body.glass-theme .spot-detail-value { color: #222; }
+        .spot-tips { margin-top: 10px; }
+        .spot-tip {
+            font-size: 0.82rem; color: #ccc; padding: 5px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05); line-height: 1.5;
+        }
+        body.glass-theme .spot-tip { color: #333; border-color: rgba(0,0,0,0.06); }
+        .spot-tip:last-child { border-bottom: none; }
+        .spot-map-btn {
+            width: 100%; padding: 11px; margin-top: 12px;
+            background: #1565c0; color: #fff; border: none;
+            border-radius: 8px; font-size: 0.95rem; font-weight: 700;
+            cursor: pointer; display: flex; align-items: center;
+            justify-content: center; gap: 8px;
+        }
+        .spot-map-btn:hover { background: #0d47a1; }
+        body.glass-theme .spot-link-btn {
+            background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.1); color: #1565c0;
+        }
+        .spot-season-badge {
+            display: inline-block; font-size: 0.72rem;
+            padding: 2px 8px; border-radius: 10px;
+            background: rgba(34,197,94,0.15); color: #4ade80;
+            margin-bottom: 10px;
+        }
+        body.glass-theme .spot-season-badge {
+            background: rgba(34,197,94,0.1); color: #166534;
+        }
+
+
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center; }
+        .modal-box { background: #1e1e1e; border: 1px solid #2d2d2d; border-radius: 16px; width: 85%; max-width: min(340px, 92vw); padding: 20px; text-align: left; box-shadow: 0 10px 25px rgba(0,0,0,0.5); color: #e0e0e0; position: relative; }
+        body.glass-theme .modal-box { background: rgba(255, 255, 255, 0.95); border: 1px solid rgba(255, 255, 255, 0.6); color: #1e293b; box-shadow: 0 10px 32px rgba(0,0,0,0.2); }
+        .modal-title-bar { font-size: 1.2rem; font-weight: bold; margin-bottom: 15px; color: #4dadf7; display: flex; justify-content: space-between; align-items: center; }
+        body.glass-theme .modal-title-bar { color: #0369a1; }
+        .modal-close-x { background: none; border: none; color: #868e96; font-size: 1.4rem; cursor: pointer; line-height: 1; padding: 0; }
+        .modal-body-content label { display: block; font-size: 1.15rem; margin-bottom: 6px; font-weight: bold; }
+        .modal-body-content input { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #4a4a4a; background: #252525; color: #fff; font-size: 1.2rem; box-sizing: border-box; margin-bottom: 15px; }
+        body.glass-theme .modal-body-content input { background: #fff; color: #1e293b; border: 1px solid rgba(0, 0, 0, 0.15); }
+        .modal-action-btn { width: 100%; padding: 11px; background: #0284c7; color: white; border: none; border-radius: 6px; font-size: 1.2rem; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+        .modal-action-btn:hover { background: #0369a1; }
+
+        /* ホテル移動手段ボタン */
+        .hotel-nav-btn {
+            width: 100%; display: flex; align-items: center; gap: 14px;
+            padding: 14px 16px; border-radius: 12px;
+            background: #252525; border: 1px solid #3a3a3a;
+            color: #e0e0e0; cursor: pointer; text-align: left;
+            transition: background 0.15s; min-height: 60px;
+        }
+        body.glass-theme .hotel-nav-btn {
+            background: #f0f4f8; border-color: #d0d8e0; color: #1e293b;
+        }
+        .hotel-nav-btn:hover { background: #333; }
+        body.glass-theme .hotel-nav-btn:hover { background: #e2e8f0; }
+        .hotel-nav-icon { font-size: 1.8rem; flex-shrink: 0; }
+        .hotel-nav-text { flex: 1; }
+        .hotel-nav-title { font-size: 1.05rem; font-weight: 700; }
+        .hotel-nav-sub { font-size: 0.82rem; color: #888; margin-top: 2px; }
+        body.glass-theme .hotel-nav-sub { color: #64748b; }
+        .hotel-nav-arrow { font-size: 1.5rem; color: #666; }
+
+        /* === 起動時入力フォーム画面 === */
+        #setupScreen {
+            max-width: 390px; width: 100%; margin: 0 auto;
+            background: #1e1e1e;
+            border-radius: 18px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 1px solid #2d2d2d;
+            overflow: visible;
+            font-family: -apple-system, 'Hiragino Sans', 'Yu Gothic UI', sans-serif;
+        }
+        body.glass-theme #setupScreen {
+            background: rgba(180,210,140,0.85);
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(80,120,40,0.40);
+            box-shadow: 0 10px 32px rgba(60,110,20,0.15);
+        }
+        .setup-header {
+            background: #252525;
+            padding: 20px 16px 14px;
+            border-bottom: 1px solid #2d2d2d;
+            border-radius: 18px 18px 0 0;
+        }
+        body.glass-theme .setup-header {
+            background: rgba(155,192,100,0.45);
+            border-bottom: 1px solid rgba(80,120,40,0.30);
+        }
+        .setup-header-title {
+            font-size: 1.2rem; font-weight: 700; color: #e0e0e0;
+        }
+        body.glass-theme .setup-header-title { color: #1e3a0a; }
+        .setup-header-sub { display: none; }
+        /* 往復切り替え */
+        .direction-toggle {
+            display: flex; gap: 0; margin-top: 12px;
+            background: #2d2d2d; border-radius: 8px;
+            padding: 3px; width: fit-content;
+        }
+        body.glass-theme .direction-toggle { background: rgba(60,90,30,0.25); }
+        .dir-btn {
+            padding: 8px 20px; min-height: 36px; border: none; border-radius: 6px;
+            font-size: 1.15rem; font-weight: 700; cursor: pointer;
+            background: transparent; color: #868e96;
+            transition: all 0.15s; font-family: inherit;
+        }
+        .dir-btn.active {
+            background: #4dadf7; color: #fff;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+        }
+        body.glass-theme .dir-btn { color: #d4e8b8; }
+        body.glass-theme .dir-btn.active { background: #5a8232; color: #fff; }
+        .direction-hint {
+            font-size: 1.2rem; color: #4dadf7; margin-top: 6px;
+            font-weight: 500; min-height: 1em;
+        }
+        body.glass-theme .direction-hint { color: #2a4a10; }
+
+        .setup-body { padding: 0 10px 4px; }
+
+        /* セクション：仕切りなし、背景に溶け込む */
+        .setup-step {
+            padding: 12px 0 4px;
+            border-bottom: 1px solid #2a2a2a;
+            margin-bottom: 8px;
+        }
+        .setup-step:last-child { border-bottom: none; }
+        .setup-step + .setup-step { margin-top: 4px; }
+
+        /* セクションヘッド */
+        .setup-step-head {
+            display: flex; align-items: center; gap: 5px;
+            margin-bottom: 10px;
+        }
+        .setup-step-badge {
+            font-size: 1.4rem; font-weight: 700;
+            color: #4dadf7;
+        }
+        .setup-step-title {
+            font-size: 1.2rem; font-weight: 700;
+            color: #e0e0e0; letter-spacing: 0.01em;
+        }
+        body.glass-theme .setup-step-badge { color: #3a5e18; }
+        body.glass-theme .setup-step-title { color: #1a3a0a; }
+
+        /* フィールド */
+        .setup-field { margin-bottom: 10px; }
+        .setup-field label {
+            display: block; font-size: 1rem;
+            color: #4dadf7; margin-bottom: 5px;
+            font-weight: 600; text-align: left;
+            letter-spacing: 0.02em;
+        }
+        body.glass-theme .setup-field label { color: #3a5e18; }
+        .setup-field input,
+        .setup-field select {
+            width: 100%; padding: 13px 14px;
+            background: #2a2a2a;
+            border: 1.5px solid #4a4a4a;
+            border-radius: 8px; color: #f0f0f0;
+            font-size: 1.05rem; box-sizing: border-box;
+            transition: border-color 0.12s;
+            appearance: none; -webkit-appearance: none;
+            font-family: inherit;
+        }
+        .setup-field input:focus,
+        .setup-field select:focus {
+            outline: none;
+            border-color: #4dadf7;
+            box-shadow: 0 0 0 2px rgba(77,173,247,0.2);
+        }
+        body.glass-theme .setup-field input,
+        body.glass-theme .setup-field select {
+            background: rgba(255,255,255,0.94); border-color: #9abe68; color: #1a1a1a;
+        }
+        body.glass-theme .setup-field input:focus,
+        body.glass-theme .setup-field select:focus {
+            border-color: #5a8232;
+            box-shadow: 0 0 0 2px rgba(90,130,50,0.2);
+        }
+        .setup-row { display: flex; gap: 7px; }
+        .setup-row .setup-field { flex: 1; min-width: 0; }
+        .setup-row .setup-field.narrow { flex: 0 0 72px; }
+
+        /* セレクト矢印：小さく右端に */
+        .setup-field select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='5' viewBox='0 0 9 5'%3E%3Cpath d='M1 1l3.5 3L8 1' stroke='%23868e96' stroke-width='1.2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            padding-right: 26px;
+        }
+
+        /* トグルスイッチ */
+        .setup-toggle-list { display: flex; flex-direction: column; }
+        .setup-toggle-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 9px 0;
+            border-bottom: 1px solid #2d2d2d;
+        }
+        body.glass-theme .setup-toggle-row { border-bottom-color: rgba(0,0,0,0.08); }
+        .setup-toggle-row:last-child { border-bottom: none; }
+        .setup-toggle-label { font-size: 1.15rem; color: #ced4da; font-weight: 400; }
+        body.glass-theme .setup-toggle-label { color: #1a1a1a; }
+        .tog-wrap { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+        .tog-wrap input { opacity: 0; width: 0; height: 0; position: absolute; }
+        .tog-slider {
+            position: absolute; inset: 0; border-radius: 12px;
+            background: #4a4a4a; transition: background 0.18s; cursor: pointer;
+        }
+        body.glass-theme .tog-slider { background: #b8cdd2; }
+        .tog-slider::after {
+            content: ''; position: absolute;
+            width: 18px; height: 18px; border-radius: 50%;
+            background: #fff; top: 3px; left: 3px;
+            transition: transform 0.18s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+        .tog-wrap input:checked + .tog-slider { background: #0284c7; }
+        body.glass-theme .tog-wrap input:checked + .tog-slider { background: #5a8232; }
+        .tog-wrap input:checked + .tog-slider::after { transform: translateX(20px); }
+
+        /* 実行ボタン */
+        .setup-submit-wrap { padding: 12px 16px 28px; position: relative; z-index: 1; }
+        .setup-submit-btn {
+            width: 100%; padding: 18px;
+            background: #0284c7;
+            color: #fff; border: none; border-radius: 10px;
+            font-size: 1.15rem; font-weight: 700;
+            cursor: pointer; letter-spacing: 0.01em;
+            font-family: inherit;
+            min-height: 52px;
+            -webkit-tap-highlight-color: rgba(0,0,0,0.1);
+            transition: background 0.12s, transform 0.1s;
+        }
+        .setup-submit-btn:hover { background: #0369a1; }
+        body.glass-theme .setup-submit-btn { background: #5a8232; }
+        body.glass-theme .setup-submit-btn:hover { background: #4a6e28; }
+        .setup-submit-btn:active { transform: scale(0.99); }
+        .setup-note {
+            font-size: 0.68rem; color: #5a8030; text-align: center;
+            margin-top: 7px;
+        }
+        /* 時刻表検索結果カード */
+        .train-result-card {
+            background: #252525;
+            border: 1.5px solid #0284c7;
+            border-radius: 8px;
+            padding: 13px 14px;
+            font-size: 1rem;
+            margin-top: 4px;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+        body.glass-theme .train-result-card { background: rgba(255,255,255,0.95); border-color: #5a8232; }
+        .train-result-row {
+            display: flex; justify-content: space-between; align-items: baseline;
+            margin-bottom: 4px; gap: 8px;
+        }
+        .train-result-name { font-weight: 700; color: #e0e0e0; font-size: 1.15rem; flex-shrink: 0; }
+        body.glass-theme .train-result-name { color: #0d2b38; }
+        .train-result-time { font-weight: 700; color: #4dadf7; font-size: 1.05rem; white-space: nowrap; }
+        .train-result-transfer { color: #adb5bd; margin-bottom: 4px; }
+        body.glass-theme .train-result-transfer { color: #555; }
+        .train-result-transfermin {
+            background: #fff3cd; color: #856404;
+            border-radius: 4px; padding: 1px 6px;
+            font-size: 0.75rem; font-weight: 700; margin-left: 6px;
+        }
+        .train-result-arr { color: #4dadf7; font-weight: 600; margin-bottom: 6px; }
+        body.glass-theme .train-result-arr { color: #4a6e28; }
+        .train-result-change {
+            background: none; border: 1px solid #bbb; color: #666;
+            border-radius: 5px; padding: 4px 10px; font-size: 0.75rem;
+            cursor: pointer; width: auto; margin-top: 2px;
+        }
+        .setup-field select option:disabled {
+            color: #bbb;
+        }
+        /* 対応範囲注記 */
+        .setup-coverage-note {
+            font-size: 0.7rem; color: #ffa94d;
+            background: #2b1f10; border: 1px solid #6b3d00;
+            border-radius: 6px; padding: 6px 10px;
+            margin: 4px 0 8px; line-height: 1.7;
+        }
+        body.glass-theme .setup-coverage-note {
+            color: #7a4000; background: #fff8ee; border-color: #f5c97a;
+        }
+        /* ダイヤ改正バナー */
+        .diaren-banner {
+            margin: 8px 10px 0; border-radius: 8px;
+            padding: 9px 12px; font-size: 1.4rem;
+            line-height: 1.75; display: none;
+        }
+        .diaren-banner.warn {
+            background: #fff8ee; border: 1px solid #f5c97a; color: #7a4800;
+        }
+        .diaren-banner.alert {
+            background: #fff0f0; border: 1px solid #f5a0a0; color: #7a0000;
+        }
+        .diaren-banner a { color: inherit; font-weight: 700; text-decoration: underline; }
+        body, .container, .time-header, .section, .navi-card, .compass-box, select, .mode-btn {
+            transition: background 0.4s ease, backdrop-filter 0.4s ease, border-color 0.4s ease, color 0.4s ease;
+        }
+        body.glass-theme .container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 18px;
+            background: rgba(255, 255, 255, 0.45);
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 10px 32px rgba(30, 41, 59, 0.15);
+        }
+        body.glass-theme .app-header { border-bottom: 1px solid rgba(255, 255, 255, 0.5); color: #0369a1; }
+        body.glass-theme .time-header { background: rgba(254, 243, 199, 0.6); border: 1px solid #d97706; }
+        body.glass-theme .time-alert { color: #b45309; }
+        body.glass-theme .schedule-details { background: rgba(255, 255, 255, 0.5); color: #334155; border: 1px solid rgba(0,0,0,0.1); }
+        body.glass-theme .section { background: rgba(255, 255, 255, 0.4); border: 1px solid rgba(255, 255, 255, 0.5); }
+        body.glass-theme .title { color: #0369a1; }
+        body.glass-theme select { background: rgba(255, 255, 255, 0.7); border: 1px solid rgba(0, 0, 0, 0.15); color: #1e293b; }
+        body.glass-theme .mode-btn { background: rgba(255, 255, 255, 0.5); border: 1px solid rgba(0, 0, 0, 0.15); color: #475569; }
+        body.glass-theme .mode-btn.active { background: #059669; color: white; border-color: #047857; }
+        body.glass-theme .info-btn { background: rgba(255, 255, 255, 0.6); border: 1px solid rgba(3, 105, 161, 0.3); color: #0369a1; }
+        body.glass-theme .info-btn.active { background: #0284c7; color: white; }
+        body.glass-theme .compass-box { background: rgba(255, 255, 255, 0.6); border: 1px solid rgba(0, 0, 0, 0.15); }
+        body.glass-theme .target-comment { color: #b45309; }
+        body.glass-theme .compass-comment { color: #0284c7; }
+        body.glass-theme .navi-card { background: rgba(254, 249, 195, 0.7); border: 1px solid #ca8a04; border-left: 5px solid #eab308; color: #713f12; }
+
+        /* 基本ダークモード */
+        .container { max-width: 400px; margin: 0 auto; background: #1e1e1e; padding: 15px; border-radius: 18px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #2d2d2d; }
+        .app-header { font-size: 1.05rem; font-weight: bold; color: #4dadf7; text-align: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #2d2d2d; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+        .app-header > span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        /* 駅の情報エリア（常時表示用） */
+        .time-header { background: #2b1b1b; border: 1px solid #e8590c; padding: 12px; border-radius: 8px; text-align: left; margin-bottom: 15px; }
+        .time-alert { font-size: 1.3rem; font-weight: bold; color: #ff922b; text-align: center; margin-bottom: 5px; }
+        .schedule-details { font-size: 1.15rem; color: #ced4da; background: #252525; padding: 8px; border-radius: 5px; margin-top: 5px; }
+        
+        .section { background: #1a2634; padding: 12px; border-radius: 8px; text-align: left; margin-bottom: 15px; border: 1px solid #233953; }
+        .title { font-weight: bold; color: #4dadf7; margin-bottom: 8px; font-size: 1.2rem; }
+        
+        .select-row-all { display: flex; gap: 6px; flex-wrap: wrap; }
+        .select-row-all select { flex: 1; padding: 8px 4px; border: 1px solid #383838; border-radius: 6px; font-size: 1.05rem; background: #252525; color: #fff; min-width: 0; }
+        
+        .mode-container { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; justify-content: center; }
+        .mode-btn { flex: 1; min-width: 100px; padding: 12px 10px; background: #2d2d2d; border: 1px solid #4a4a4a; border-radius: 8px; font-size: 1.05rem; font-weight: bold; cursor: pointer; color: #ced4da; }
+        .mode-btn.active { background: #0ca678; color: white; border-color: #2b8a3e; }
+        
+        /* お弁当・お土産ボタンの横並び用 */
+        .info-container { display: flex; gap: 8px; }
+        .info-btn { flex: 1; padding: 8px; background: #232d38; border: 1px solid #3b5bdb; border-radius: 6px; font-size: 1.15rem; font-weight: bold; cursor: pointer; color: #70b5f9; }
+        .info-btn.active { background: #3b5bdb; color: white; }
+
+        .target-comment { font-size: 1.1rem; font-weight: bold; color: #ff922b; margin-top: 15px; text-align: center; }
+        .compass-box { width: 85px; height: 85px; margin: 10px auto 5px auto; border-radius: 50%; background: #252525; border: 2px solid #495057; position: relative; display: flex; align-items: center; justify-content: center; }
+        .north-mark { position: absolute; top: 3px; font-weight: bold; color: #ff6b6b; font-size: 1.15rem; }
+        .arrow { font-size: 3rem; color: #339af0; transition: transform 0.2s ease-out; font-weight: bold; }
+        .compass-comment { font-size: 1.2rem; font-weight: bold; color: #4dadf7; margin-bottom: 15px; text-align: center; }
+        
+        .navi-card { padding: 12px; border-radius: 8px; text-align: left; font-size: 1.05rem; line-height: 1.4; background: #2b281a; border: 1px solid #423d27; border-left: 5px solid #fcc419; color: #fff3bf; }
+
+        /* スイッチUI */
+        .switch-label { font-size: 0.75rem; color: #868e96; display: flex; align-items: center; gap: 5px; cursor: pointer; }
+        .toggle-input { display: none; }
+        .toggle-btn { width: 44px; height: 22px; background: #343a40; border-radius: 11px; position: relative; display: inline-block; }
+        .toggle-btn::after { content: ''; width: 18px; height: 18px; background: #fff; border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: transform 0.3s; }
+        .toggle-input:checked + .toggle-btn { background: #0284c7; }
+        .toggle-input:checked + .toggle-btn::after { transform: translateX(22px); }
+
+        /* === 追加：ホテル道案内ボタンと別画面（モーダル）のスタイル === */
+        .hotel-section { margin-top: 15px; text-align: center; }
+        .hotel-launch-btn { width: 100%; padding: 12px; background: #eab308; color: #1e293b; border: none; border-radius: 8px; font-size: 1.4rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(234, 179, 8, 0.3); transition: background 0.2s; }
+        body.glass-theme .hotel-launch-btn { background: #eab308; color: #1e293b; }
+        .hotel-launch-btn:hover { background: #ca8a04; }
+
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center; }
+        .modal-box { background: #1e1e1e; border: 1px solid #2d2d2d; border-radius: 16px; width: 85%; max-width: min(340px, 92vw); padding: 20px; text-align: left; box-shadow: 0 10px 25px rgba(0,0,0,0.5); color: #e0e0e0; position: relative; }
+        body.glass-theme .modal-box { background: rgba(255, 255, 255, 0.95); border: 1px solid rgba(255, 255, 255, 0.6); color: #1e293b; box-shadow: 0 10px 32px rgba(0,0,0,0.2); }
+        .modal-title-bar { font-size: 1.2rem; font-weight: bold; margin-bottom: 15px; color: #4dadf7; display: flex; justify-content: space-between; align-items: center; }
+        body.glass-theme .modal-title-bar { color: #0369a1; }
+        .modal-close-x { background: none; border: none; color: #868e96; font-size: 1.4rem; cursor: pointer; line-height: 1; padding: 0; }
+        .modal-body-content label { display: block; font-size: 1.15rem; margin-bottom: 6px; font-weight: bold; }
+        .modal-body-content input { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #4a4a4a; background: #252525; color: #fff; font-size: 1.2rem; box-sizing: border-box; margin-bottom: 15px; }
+        body.glass-theme .modal-body-content input { background: #fff; color: #1e293b; border: 1px solid rgba(0, 0, 0, 0.15); }
+        .modal-action-btn { width: 100%; padding: 11px; background: #0284c7; color: white; border: none; border-radius: 6px; font-size: 1.2rem; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+        .modal-action-btn:hover { background: #0369a1; }
+
+    </style>
+</head>
+<body class="glass-theme">
+
+<!-- ========== 起動時入力フォーム画面 ========== -->
+<div id="setupScreen">
+
+    <div class="setup-header">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; flex-direction:column; line-height:1.3;">
+                <span class="setup-header-title">🧭 スマート乗換ナビ</span>
+                <span style="display:inline-block; background:#1a73e8; color:#fff; font-size:0.85rem; font-weight:700; padding:2px 10px; border-radius:4px; letter-spacing:0.08em;">― 福井県版 ―</span>
+            </div>
+            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
+                <span style="font-size:0.85rem; color:#888; font-weight:500;">入力項目</span>
+                <label class="switch-label" style="flex-shrink:0;">
+                    <span id="themeTextSetup" style="font-size:0.72rem;">すりガラス</span>
+                    <input type="checkbox" id="themeSwitchSetup" class="toggle-input" checked onchange="toggleThemeSetup()">
+                    <span class="toggle-btn"></span>
+                </label>
+            </div>
+        </div>
+        <!-- 往路／復路切り替え -->
+        <div class="direction-toggle" style="margin-top:10px;">
+            <button class="dir-btn active" id="dirGo"   onclick="setDirection('go')">往路</button>
+            <button class="dir-btn"        id="dirBack" onclick="setDirection('back')">復路</button>
+        </div>
+        <div class="direction-hint" id="dirHint"></div>
+    </div>
+
+    <!-- ダイヤ改正バナー（checkDiaRevision()で表示制御） -->
+    <div class="diaren-banner" id="diarenBanner"></div>
+
+    <div class="setup-body">
+
+        <!-- ① 基本ルート設定 -->
+        <div class="setup-step">
+            <div class="setup-step-head">
+                <span class="setup-step-badge">①</span>
+                <span class="setup-step-title">基本ルート設定</span>
+            </div>
+            <div class="setup-field">
+                <label>出発駅</label>
+                <select id="inp_from_sel" onchange="filterToStations(); updateSpotsBtn();">
+                    <optgroup label="── 福井エリア ──">
+                        <option value="福井駅" selected>福井駅</option>
+                        <option value="越前たけふ駅">越前たけふ駅</option>
+                        <option value="芦原温泉駅">芦原温泉駅</option>
+                        <option value="加賀温泉駅">加賀温泉駅</option>
+                        <option value="金沢駅">金沢駅</option>
+                        <option value="富山駅">富山駅</option>
+                    </optgroup>
+                    <optgroup label="── 関西エリア ──">
+                        <option value="京都駅">京都駅</option>
+                        <option value="大阪駅">大阪駅</option>
+                        <option value="新大阪駅">新大阪駅</option>
+                    </optgroup>
+                    <optgroup label="── 東海エリア ──">
+                        <option value="名古屋駅">名古屋駅</option>
+                    </optgroup>
+                    <optgroup label="── 首都圏エリア ──">
+                        <option value="東京駅">東京駅</option>
+                        <option value="品川駅">品川駅</option>
+                        <option value="新横浜駅">新横浜駅</option>
+                    </optgroup>
+                </select>
+                <input type="hidden" id="inp_from" value="福井駅">
+            </div>
+            <div class="setup-field">
+                <label>到着駅</label>
+                <select id="inp_to_sel" onchange="searchTrain()">
+                    <optgroup label="── 福井エリア ──">
+                        <option value="福井駅">福井駅</option>
+                        <option value="越前たけふ駅">越前たけふ駅</option>
+                        <option value="芦原温泉駅">芦原温泉駅</option>
+                        <option value="加賀温泉駅">加賀温泉駅</option>
+                        <option value="金沢駅">金沢駅</option>
+                        <option value="富山駅">富山駅</option>
+                    </optgroup>
+                    <optgroup label="── 関西エリア ──">
+                        <option value="京都駅" selected>京都駅</option>
+                        <option value="大阪駅">大阪駅</option>
+                        <option value="新大阪駅">新大阪駅</option>
+                    </optgroup>
+                    <optgroup label="── 東海エリア ──">
+                        <option value="名古屋駅">名古屋駅</option>
+                    </optgroup>
+                    <optgroup label="── 首都圏エリア ──">
+                        <option value="東京駅">東京駅</option>
+                        <option value="品川駅">品川駅</option>
+                        <option value="新横浜駅">新横浜駅</option>
+                    </optgroup>
+                </select>
+                <input type="hidden" id="inp_to" value="京都駅">
+            </div>
+            <div class="setup-row">
+                <div class="setup-field">
+                    <label>座席種別</label>
+                    <select id="inp_seatType">
+                        <option value="指定席" selected>指定席</option>
+                        <option value="自由席">自由席</option>
+                        <option value="グリーン車">グリーン車</option>
+                    </select>
+                </div>
+                <div class="setup-field narrow">
+                    <label>号車</label>
+                    <input type="number" id="inp_car" value="3" min="1" max="16">
+                </div>
+            </div>
+            <div class="setup-field">
+                <label>乗車日時</label>
+                <input type="datetime-local" id="inp_datetime" onchange="searchTrain()">
+            </div>
+            <!-- 時刻表自動検索結果 -->
+            <div id="trainSearchResult" style="display:none;">
+                <div class="train-result-card" id="trainResultCard"></div>
+            </div>
+            <!-- 手動上書き（自動検索で見つからない場合） -->
+            <div id="trainManualArea" style="display:none; margin-top:6px;">
+                <div class="setup-row">
+                    <div class="setup-field">
+                        <label>列車名（手動入力）</label>
+                        <input type="text" id="inp_trainName_manual" placeholder="つるぎ" value=""
+                               oninput="document.getElementById('inp_trainName').value=this.value">
+                    </div>
+                    <div class="setup-field narrow">
+                        <label>号</label>
+                        <input type="text" id="inp_trainNum_manual" placeholder="12号" value=""
+                               oninput="document.getElementById('inp_trainNum').value=this.value">
+                    </div>
+                </div>
+            </div>
+            <input type="hidden" id="inp_trainName" value="つるぎ">
+            <input type="hidden" id="inp_trainNum" value="12号">
+            <input type="hidden" id="inp_trainType" value="新幹線">
+            <input type="hidden" id="inp_weekday" value="月">
+            <input type="hidden" id="inp_transitMin" value="8">
+        </div>
+
+        <!-- ② 宿泊・目的地設定（往路のみ表示） -->
+        <div class="setup-step" id="hotelSetupStep">
+            <div class="setup-step-head">
+                <span class="setup-step-badge">②</span>
+                <span class="setup-step-title">宿泊・目的地設定</span>
+            </div>
+            <div class="setup-field">
+                <label>ホテル・目的地名</label>
+                <input type="text" id="inp_hotel" placeholder="ホテルグランヴィア京都">
+            </div>
+            <div class="setup-field">
+                <label>ホテル住所または電話番号</label>
+                <input type="text" id="inp_hotelAddress" placeholder="例：075-344-8888 または 京都府京都市下京区…">
+            </div>
+            <input type="hidden" id="inp_checkin" value="15:00">
+            <input type="hidden" id="inp_checkout" value="10:00">
+            <input type="hidden" id="inp_transfers" value="1">
+        </div>
+
+        <!-- ③ 到着駅情報 -->
+        <div class="setup-step">
+            <div class="setup-step-head">
+                <span class="setup-step-badge">③</span>
+                <span class="setup-step-title">到着駅情報</span>
+            </div>
+            <div class="setup-toggle-list">
+                <div class="setup-toggle-row">
+                    <span class="setup-toggle-label">🍱 駅弁情報</span>
+                    <label class="tog-wrap"><input type="checkbox" id="opt_bento" checked><span class="tog-slider"></span></label>
+                </div>
+                <div class="setup-toggle-row">
+                    <span class="setup-toggle-label">🎁 お土産情報</span>
+                    <label class="tog-wrap"><input type="checkbox" id="opt_omiyage"><span class="tog-slider"></span></label>
+                </div>
+                <div class="setup-toggle-row">
+                    <span class="setup-toggle-label">🚻 トイレ案内</span>
+                    <label class="tog-wrap"><input type="checkbox" id="opt_toilet"><span class="tog-slider"></span></label>
+                </div>
+                <div class="setup-toggle-row">
+                    <span class="setup-toggle-label">🚬 喫煙所情報</span>
+                    <label class="tog-wrap"><input type="checkbox" id="opt_smoking"><span class="tog-slider"></span></label>
+                </div>
+                <div class="setup-toggle-row">
+                    <span class="setup-toggle-label">🔒 コインロッカー情報</span>
+                    <label class="tog-wrap"><input type="checkbox" id="opt_locker"><span class="tog-slider"></span></label>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /setup-body -->
+
+    <!-- 観光スポットボタン（復路時のみ表示） -->
+    <div id="spotsSetupBtn" style="display:none; padding: 0 16px 8px;">
+        <button onclick="showSpotsScreen()" style="width:100%; background:linear-gradient(135deg,#1a6b3c,#2d9e5f); border:none; color:#fff; border-radius:10px; padding:14px; font-size:1rem; font-weight:700; cursor:pointer; min-height:50px;">
+            🗾 福井の観光スポットを選ぶ（ベスト10）
+        </button>
+        <div style="font-size:0.75rem; color:#888; text-align:center; margin-top:4px;">
+            ※福井到着後の観光スポットを事前にチェック
+        </div>
+    </div>
+
+    <div class="setup-submit-wrap">
+        <button class="setup-submit-btn" onclick="startApp()">ナビを起動する →</button>
+        <div class="setup-note">3日間計画管理、費用概算式となります</div>
+        <div style="font-size:0.72rem; color:#888; text-align:center; margin-top:6px;">
+            📅 時刻表：2026年3月14日改正版　出典：JR公式PDF
+        </div>
+    </div>
+
+</div>
+
+<!-- ========== メイン画面（入力後に表示） ========== -->
+<div id="mainScreen" style="display:none;">
+<div class="container">
+    <div class="app-header">
+        <span style="display:flex; flex-direction:column; line-height:1.3;">
+            <span>🧭 スマート乗換<wbr>ナビ</span>
+            <span style="display:inline-block; background:#1a73e8; color:#fff; font-size:0.85rem; font-weight:700; padding:2px 10px; border-radius:4px; letter-spacing:0.08em;">― 福井県版 ―</span>
+        </span>
+        <label class="switch-label">
+            <span id="themeText">すりガラス</span>
+            <input type="checkbox" id="themeSwitch" class="toggle-input" checked onchange="toggleTheme()">
+            <span class="toggle-btn"></span>
+        </label>
+    </div>
+
+    <!-- 電波状況バー -->
+    <div id="networkBar" class="online">
+        <span class="network-dot"></span>
+        <span id="networkText" style="color:#fff; text-shadow: 0 0 8px rgba(0,0,0,0.5);">オンライン（Googleマップ利用可）</span>
+    </div>
+    <div style="font-size:0.7rem; color:#666; text-align:right; margin-bottom:4px;">
+        📅 時刻表：2026年3月14日改正版
+    </div>
+
+    <div class="time-header">
+        <div id="countdown" class="time-alert">
+            <div style="font-size:0.85rem; font-weight:600; opacity:0.8; letter-spacing:0.05em;">⏳ 乗継まであと</div>
+            <div id="countdownTime" style="font-size:2rem; font-weight:800; line-height:1.1; letter-spacing:0.02em;">8分 15秒</div>
+        </div>
+        <div class="schedule-details">
+            <strong>【現在の到着・発車情報】</strong><br>
+            <!-- ①② tripData反映: 到着列車・出発駅・発車時刻を動的表示 -->
+            • 到着：<span id="arrivalLabel">−</span>（1階）<br>
+            • 次発：<span id="trainLabel" style="font-weight:bold;">つるぎ 12号</span> <span id="departureTime">−</span>発（3階）
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="title" id="naviStationTitle">① 敦賀駅 乗車号車・到着番線</div>
+        <div class="select-row-all">
+            <select id="carSelect" onchange="updateNavi()">
+                <option value="1">1号車</option>
+                <option value="2">2号車</option>
+                <option value="3" selected>3号車</option>
+                <option value="4">4号車</option>
+                <option value="5">5号車</option>
+                <option value="6">6号車</option>
+                <option value="7">7号車</option>
+                <option value="8">8号車</option>
+                <option value="9">9号車</option>
+                <option value="10">10号車</option>
+                <option value="11">11号車</option>
+                <option value="12">12号車</option>
+            </select>
+            <select id="platformSelect" onchange="updatePlatform()" style="flex:1;">
+                <option value="11">11番線着</option>
+                <option value="12">12番線着</option>
+                <option value="13">13番線着</option>
+                <option value="14">14番線着</option>
+            </select>
+        </div>
+        <div style="font-size:0.78rem; color:#888; margin-top:4px; text-align:left;">
+            ※番線は時刻表から自動設定。変更が必要な場合のみ上書きしてください
+        </div>
+        <input type="hidden" id="trainNameSelect" value="つるぎ">
+        <input type="hidden" id="trainNumSelect" value="12号">
+    </div>
+
+    <div class="section">
+        <div class="title" id="naviOptionTitle">② 敦賀駅 到着駅情報</div>
+        <div class="mode-container">
+            <button id="btnDirect" class="mode-btn active" onclick="selectMode('direct')">直接次の列車へ</button>
+            <!-- ③ opt_toilet チェック時のみ表示 -->
+            <button id="btnToilet" class="mode-btn" onclick="selectMode('toilet')" style="display:none;">トイレに寄る</button>
+            <!-- ③ opt_smoking チェック時のみ表示 -->
+            <button id="btnSmoking" class="mode-btn" onclick="selectMode('smoking')" style="display:none;">喫煙所に寄る</button>
+            <!-- ④ opt_locker チェック時のみ表示（新規追加） -->
+            <button id="btnLocker" class="mode-btn" onclick="selectMode('locker')" style="display:none;">🔒 コインロッカー</button>
+        </div>
+        <div class="info-container">
+            <!-- ③ opt_bento チェック時のみ表示 -->
+            <button id="btnBento" class="info-btn" onclick="selectMode('bento')" style="display:none;">🍱 人気の駅弁を見る</button>
+            <!-- ③ opt_omiyage チェック時のみ表示 -->
+            <button id="btnOmiyage" class="info-btn" onclick="selectMode('omiyage')" style="display:none;">🎁 定番お土産を見る</button>
+        </div>
+    </div>
+
+    <div id="targetComment" class="target-comment">📍 目的地：つるぎ 12号 ホーム (3階)</div>
+
+    <div class="compass-box">
+        <div class="north-mark">N</div>
+        <div id="arrow" class="arrow">↑</div>
+    </div>
+    <div id="compassComment" class="compass-comment">➔ まっすぐ正面へ進む</div>
+    
+    <div id="naviCard" class="navi-card"></div>
+
+    <div class="hotel-section">
+        <button class="hotel-launch-btn" onclick="showHotelModalWithCheck()">🏨 ホテルへの道案内</button>
+        <div class="hotel-offline-note" id="hotelOfflineNote">
+            📵 現在オフラインです。電波のある場所でご利用ください
+        </div>
+    </div>
+
+    <!-- 入力画面に戻るボタン -->
+    <div style="margin-top:12px; text-align:center;">
+        <button onclick="goBackToSetup()" style="background:none; border:1px solid #4a4a4a; color:#868e96; border-radius:6px; padding:12px 20px; min-height:44px; font-size:0.82rem; cursor:pointer;">✏️ 入力内容を修正する</button>
+    </div>
+</div><!-- /container -->
+</div><!-- /mainScreen -->
+
+<!-- ========== 観光スポット画面 ========== -->
+<div id="spotsScreen" style="display:none;">
+<div class="container">
+    <div class="app-header">
+        <span>🗾 福井観光スポット</span>
+        <button onclick="hideSpotsScreen()" style="background:none;border:none;color:inherit;font-size:1.1rem;cursor:pointer; padding:4px 8px;">✕</button>
+    </div>
+    <div style="font-size:0.82rem; color:#888; margin-bottom:12px; text-align:center;">
+        2026年版 福井県公式ランキング ベスト10<br>
+        <span style="font-size:0.75rem;">スポットをタップするとアクセス・知っトク情報を表示</span>
+    </div>
+    <div id="spotsGrid"></div>
+    <div id="spotDetail" style="display:none; margin-top:12px;"></div>
+    <div style="margin-top:16px; text-align:center; padding-bottom:20px;">
+        <button onclick="hideSpotsScreen()" style="background:#2d3748;border:none;color:#ccc;border-radius:8px;padding:12px 28px;font-size:0.95rem;cursor:pointer;">← ナビに戻る</button>
+    </div>
+</div>
+</div>
+
+<div id="hotelModal" class="modal-overlay" onclick="closeModalOnOuterClick(event)">
+    <div class="modal-box">
+        <div class="modal-title-bar">
+            <span>🏨 ホテルへの道案内</span>
+            <button class="modal-close-x" onclick="hideHotelModal()">×</button>
+        </div>
+        <div class="modal-body-content">
+            <!-- 目的地は入力画面から自動セット -->
+            <div id="hotelDestDisplay" style="background:rgba(255,255,255,0.07); border-radius:8px; padding:10px 14px; margin-bottom:14px;">
+                <div style="font-size:0.72rem; color:#888; margin-bottom:3px;">目的地（住所または電話番号）</div>
+                <div id="hotelDestName" style="font-size:1rem; font-weight:700;"></div>
+                <div id="hotelDestAddr" style="font-size:0.85rem; color:#aaa; margin-top:2px;"></div>
+            </div>
+            <div style="font-size:0.85rem; color:#888; margin-bottom:14px;">
+                📍 現在地から案内します
+            </div>
+            <!-- 移動手段選択ボタン -->
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <button class="hotel-nav-btn" onclick="startHotelNav('taxi')">
+                    <span class="hotel-nav-icon">🚕</span>
+                    <div class="hotel-nav-text">
+                        <div class="hotel-nav-title">タクシー</div>
+                        <div class="hotel-nav-sub">近くのタクシー乗り場を検索</div>
+                    </div>
+                    <span class="hotel-nav-arrow">›</span>
+                </button>
+                <button class="hotel-nav-btn" onclick="startHotelNav('walking')">
+                    <span class="hotel-nav-icon">🚶</span>
+                    <div class="hotel-nav-text">
+                        <div class="hotel-nav-title">徒歩</div>
+                        <div class="hotel-nav-sub">ホテルまで歩いて行く</div>
+                    </div>
+                    <span class="hotel-nav-arrow">›</span>
+                </button>
+                <button class="hotel-nav-btn" onclick="startHotelNav('transit')">
+                    <span class="hotel-nav-icon">🚃</span>
+                    <div class="hotel-nav-text">
+                        <div class="hotel-nav-title">電車・バス</div>
+                        <div class="hotel-nav-sub">最寄り駅・停留所まで案内</div>
+                    </div>
+                    <span class="hotel-nav-arrow">›</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ============================================================
+// スマート乗換ナビ — メインスクリプト（完全リライト版）
+// ============================================================
+
+// ---------- 状態変数 ----------
+let tripData      = {};
+let tripDirection = 'go';
+let currentMode   = 'direct';
+let timeLeft      = 0;
+
+
+
+// ============================================================
+// 福井観光スポットデータ（2026年版）
+// ソース：ふくいドットコム公式ランキング・福井市観光サイト
+// ============================================================
+const FUKUI_SPOTS = [
+    {
+        rank: 1,
+        name: '福井県立恐竜博物館',
+        emoji: '🦕',
+        color: '#2d6a4f',
+        area: '勝山市',
+        tag: '博物館',
+        desc: '世界三大恐竜博物館のひとつ。国内最大級の恐竜化石コレクションを誇り、年間約100万人が訪れる福井最大の観光スポット。',
+        access: '🚉 福井駅から えちぜん鉄道で勝山駅→コミュニティバス約15分（計約75分）/ 土日は恐竜列車利用可\n🚗 車：福井駅から約50分 / 敦賀駅から約90分',
+        hours: '9:00〜17:00（入館16:30まで）第2・第4水曜休館（祝日の場合は翌日・夏休みは無休）',
+        fee: '大人1,000円 高校・大学生800円 小中学生500円',
+        tips: [
+            '🎯 日時指定の事前予約制。当日券も空きがあれば販売されるが売切れることが多い',
+            '⏰ 所要時間は常設展のみで2〜3時間。野外体験込みなら4〜5時間',
+            '🍽️ 館内レストランは混雑。11時前か14時以降がおすすめ',
+            '🚌 えちぜん鉄道 勝山駅からコミュニティバスで約15分。繁忙期は駐車場が満車になりやすい',
+        ],
+        mapUrl: 'https://www.google.com/maps/search/福井県立恐竜博物館',
+        links: [
+            { label: '🎟️ 公式チケット予約', url: 'https://www.dinosaur.pref.fukui.jp/guide/ticket.html' },
+            { label: '🌐 公式サイト', url: 'https://www.dinosaur.pref.fukui.jp/' },
+            { label: '🚌 恐竜列車・バス予約', url: 'https://www.dinosaur.pref.fukui.jp/guide/access.html' },
+        ],
+        season: '通年（春・夏休みは特に混雑）',
+    },
+    {
+        rank: 2,
+        name: '一乗谷朝倉氏遺跡',
+        emoji: '🏯',
+        color: '#6b4226',
+        area: '福井市',
+        tag: '歴史',
+        desc: '戦国時代に越前を支配した朝倉氏の城下町跡。国の特別史跡・特別名勝・重要文化財に指定。復原町並みは往時の姿を体感できる。',
+        access: '🚉 福井駅からバスで約30分（本数少なめ・要時刻確認）/ 土日は周遊バスあり\n🚗 車：福井駅から約15分 / 敦賀駅から約40分',
+        hours: '9:00〜17:00（入場16:30まで）月曜休館',
+        fee: '大人220円 小中学生70円',
+        tips: [
+            '🌸 桜の季節（4月初旬）は夜間ライトアップもあり幻想的',
+            '🍂 秋の紅葉も絶景。10月末〜11月が見頃',
+            '👟 広大な敷地なので歩きやすい靴で。所要2時間程度',
+            '📸 復原町並みのフォトスポットは朝早い時間が人が少なくておすすめ',
+        ],
+        mapUrl: 'https://www.google.com/maps/search/一乗谷朝倉氏遺跡',
+        links: [
+            { label: '🌐 公式サイト（朝倉氏遺跡保存協会）', url: 'https://asakura-museum.pref.fukui.lg.jp/' },
+            { label: '🗺️ 周辺マップ', url: 'https://www.google.com/maps/search/一乗谷朝倉氏遺跡+福井市' },
+            { label: '🚌 バスアクセス', url: 'https://www.city.fukui.lg.jp/kankou/kankou/access/asakura_bus.html' },
+        ],
+        season: '春（桜）・秋（紅葉）が特におすすめ',
+    },
+    {
+        rank: 3,
+        name: '大本山永平寺',
+        emoji: '⛩️',
+        color: '#1a472a',
+        area: '吉田郡永平寺町',
+        tag: '寺院',
+        desc: '1244年開創の禅の修行道場。樹齢約700年の老杉に囲まれた約10万坪の境内に70棟余りの建物が並ぶ。ミシュラン2つ星。',
+        access: '🚉 福井駅東口から永平寺ライナー（バス）で直通約30分・1,000円\n🚗 車：福井駅から約25分 / 敦賀駅から約55分',
+        hours: '8:30〜16:30（入場16:00まで）年中無休',
+        fee: '大人700円 小中学生300円 未就学児無料',
+        tips: [
+            '🙏 修行の場なので写真撮影禁止エリアあり。静かに拝観を',
+            '🌿 朝8:30の開門直後が最も厳かな雰囲気を体感できる',
+            '🍜 門前町に永平寺そばの名店が多数。昼食はここで',
+            '❄️ 雪景色の冬の永平寺は幽玄の美。防寒必須',
+        ],
+        mapUrl: 'https://www.google.com/maps/search/大本山永平寺',
+        links: [
+            { label: '🌐 公式サイト', url: 'https://daihonzan-eiheiji.com/' },
+            { label: '🚌 永平寺ライナー時刻表', url: 'https://www.keifuku.co.jp/bus/liner/' },
+            { label: '🛏️ 参禅体験（宿泊）', url: 'https://daihonzan-eiheiji.com/sanzen/' },
+        ],
+        season: '通年（雪の冬・新緑の春が特におすすめ）',
+    },
+    {
+        rank: 4,
+        name: '東尋坊',
+        emoji: '🌊',
+        color: '#1565c0',
+        area: '坂井市',
+        tag: '絶景',
+        desc: '世界三大奇勝のひとつ。約1kmにわたる柱状節理の断崖絶壁。夕日百選にも選ばれた日本海の絶景スポット。',
+        access: '🚉 芦原温泉駅からバスで約40分 / えちぜん鉄道 三国駅からバスで約10分\n🚗 車：福井駅から約50分 / 敦賀駅から約80分（距離あり）',
+        hours: '散策自由（土産店は9:00頃〜17:00頃）',
+        fee: '無料（遊覧船 大人1,500円）',
+        tips: [
+            '🌅 夕日が最大の見どころ。日没1時間前に到着がベスト',
+            '🌊 波が高い日は柵の外に出ないこと。危険エリアあり',
+            '🦀 周辺の海鮮店は越前がにシーズン（11〜3月）が特においしい',
+            '🚢 遊覧船（30分）に乗ると断崖を海から見上げる絶景が楽しめる',
+        ],
+        mapUrl: 'https://www.google.com/maps/search/東尋坊',
+        links: [
+            { label: '🌐 公式サイト（坂井市）', url: 'https://www.fuku-e.com/spot/detail_1476.html' },
+            { label: '🚢 遊覧船予約', url: 'https://www.tojinbo-kanko.jp/' },
+            { label: '🚌 バスアクセス', url: 'https://www.keifuku.co.jp/bus/' },
+        ],
+        season: '通年（夕日・海鮮は秋冬・春夏はグリーンフラッシュ狙い）',
+    },
+    {
+        rank: 5,
+        name: 'レインボーライン山頂公園',
+        emoji: '🌈',
+        color: '#7b1fa2',
+        area: '三方上中郡若狭町',
+        tag: '絶景',
+        desc: '三方五湖を一望できる標高400mの山頂公園。五湖がそれぞれ異なる色に見える絶景は「天国に最も近い場所」とも呼ばれる。',
+        access: '🚉【敦賀発おすすめ】ゴコイチバス（土日祝・4〜11月）で敦賀駅から直行・1日5便\n🚗 車：敦賀駅から約40分 / 福井駅から約1時間40分',
+        hours: '9:00〜17:00（季節により変動）',
+        fee: '普通車1,790円（往復リフト・テラス入場含む）',
+        tips: [
+            '☀️ 晴れた午前中が五湖の色が最もきれいに見える',
+            '🌸 4〜5月の山頂から見る桜と湖のコントラストは絶品',
+            '🚡 リフトとテレキャビンで山頂へ。足腰が心配な方も安心',
+            '💨 山頂は風が強いことが多い。上着を持参推奨',
+        ],
+        mapUrl: 'https://www.google.com/maps/search/レインボーライン山頂公園',
+        links: [
+            { label: '🌐 公式サイト', url: 'https://www.rainbowline.jp/' },
+            { label: '🎟️ 料金・営業情報', url: 'https://www.rainbowline.jp/guide/' },
+            { label: '🗺️ アクセス', url: 'https://www.rainbowline.jp/access/' },
+        ],
+        season: '春（桜）・初夏・秋が特におすすめ',
+    },
+    {
+        rank: 6,
+        name: '丸岡城',
+        emoji: '🏰',
+        color: '#4a4a00',
+        area: '坂井市',
+        tag: '城',
+        desc: '現存する最古の天守閣のひとつ。1576年建立の2層3階の天守は「霞ヶ城」の別名でも親しまれる。日本100名城のひとつ。',
+        access: '🚉 福井駅西口から京福バスで約50分 / 芦原温泉駅から京福バスで約20分\n🚗 車：福井駅から約25分 / 敦賀駅から約50分',
+        hours: '【⚠️ 工事中】2025年12月〜2027年11月予定 天守修理工事のため入城不可',
+        fee: '大人450円 小中学生150円（工事中は入城不可）',
+        tips: [
+            '⚠️ 2025年12月〜2027年11月は天守修理工事中のため天守への入城は不可',
+            '🌸 工事中でも桜・城下町の散策は可能。4月上旬の夜桜ライトアップは必見',
+            '📸 城の全景を撮るなら公園入口付近からが最もきれい',
+            '🏘️ 周辺に福井名物「おろしそば」の名店が多い',
+        ],
+        mapUrl: 'https://www.google.com/maps/search/丸岡城',
+        links: [
+            { label: '⚠️ 工事情報（2025〜2027年）', url: 'https://maruoka-castle.jp/information/' },
+            { label: '🌐 公式サイト', url: 'https://maruoka-castle.jp/' },
+            { label: '🚌 バスアクセス', url: 'https://www.fuku-e.com/spot/detail_1018.html' },
+        ],
+        season: '春（桜ライトアップ）が最大のハイライト',
+    },
+    {
+        rank: 7,
+        name: '越前大野城',
+        emoji: '🏯',
+        color: '#37474f',
+        area: '大野市',
+        tag: '城・絶景',
+        desc: '「天空の城」として有名。秋〜春の早朝、雲海に浮かぶ幻想的な姿が人気。北陸の小京都・大野の城下町とともに楽しめる。',
+        access: '🚉 JR越前大野駅から徒歩約25分（バスもあり）\n🚗 車：福井駅から約55分 / 敦賀駅から約80分（公共交通は不便・レンタカー推奨）',
+        hours: '9:00〜17:00（3月末〜11月末） 冬季閉館',
+        fee: '大人300円 小中学生150円',
+        tips: [
+            '🌫️ 雲海は10〜12月の晴れた早朝（日の出前後）に出やすい',
+            '📍 雲海の撮影スポットは戌山城址（天守から北西2km）',
+            '🌊 湧き水の街・大野。七間朝市（毎朝）は地元野菜や漬物が並ぶ',
+            '🚗 公共交通でのアクセスが不便。レンタカー推奨',
+        ],
+        mapUrl: 'https://www.google.com/maps/search/越前大野城',
+        links: [
+            { label: '🌐 公式サイト（大野市）', url: 'https://www.city.ono.fukui.jp/kosodate/bunka-rekishi/hakubutsukan/kanko/echizenonojyo/onojyo.html' },
+            { label: '🌫️ 雲海予報・条件', url: 'https://www.fuku-e.com/feature/detail_247.html' },
+            { label: '🏘️ 城下町・七間朝市', url: 'https://www.fuku-e.com/spot/detail_1004.html' },
+        ],
+        season: '秋〜冬早朝（雲海）・春（桜）',
+    },
+    {
+        rank: 8,
+        name: 'あわら温泉',
+        emoji: '♨️',
+        color: '#b71c1c',
+        area: 'あわら市',
+        tag: '温泉',
+        desc: '関西の奥座敷と呼ばれる北陸屈指の温泉地。明治16年開湯。旅館や日帰り温泉が充実し、越前がにや若狭ぐじが楽しめる。',
+        access: '🚉 芦原温泉駅から徒歩10〜15分またはシャトルバス / 福井駅から電車で約15分\n🚉 敦賀駅からはハピラインで芦原温泉駅まで約55分（乗換あり）',
+        hours: '旅館により異なる（日帰り入浴 10:00〜21:00程度）',
+        fee: '日帰り入浴 500〜1,000円程度',
+        tips: [
+            '🦀 越前がに解禁（11月〜3月）時期はかに会席が大人気。要早期予約',
+            '🚂 芦原温泉駅が最寄り。福井駅から特急で15分と好アクセス',
+            '♨️ 朝市（芦湯広場）は無料の足湯も楽しめる',
+            '🎆 夏の花火大会（8月）は宿泊客には特等席あり',
+        ],
+        mapUrl: 'https://www.google.com/maps/search/あわら温泉',
+        links: [
+            { label: '🌐 公式サイト（あわら温泉旅館協同組合）', url: 'https://www.awara-onsen.org/' },
+            { label: '🚃 えちぜん鉄道時刻表', url: 'https://www.echizen-tetudo.co.jp/timetable/' },
+            { label: '♨️ 日帰り入浴施設', url: 'https://www.fuku-e.com/spot/detail_1475.html' },
+        ],
+        season: '通年（かには冬・花火は夏）',
+    },
+    {
+        rank: 9,
+        name: '三方五湖',
+        emoji: '🏞️',
+        color: '#00695c',
+        area: '三方上中郡',
+        tag: '自然',
+        desc: '5つの湖（水月湖・三方湖・菅湖・久々子湖・日向湖）からなる景勝地。ラムサール条約登録湿地。レインボーラインからの眺望が絶品。',
+        access: '🚉【敦賀発おすすめ】ゴコイチバス（土日祝・4〜11月）で敦賀駅から直行\n🚗 車：敦賀駅から約30分 / 福井駅から約1時間20分',
+        hours: '散策自由',
+        fee: '無料（レインボーライン別途）',
+        tips: [
+            '🚣 カヌー体験（要予約）で湖上から自然を満喫できる',
+            '🐟 三方湖は汽水湖。ウナギ・コイ・ヒイラギが名物',
+            '🌿 若狭三方縄文博物館では年縞（7万年分の地層）が見られる',
+            '🌅 日向湖は日本海に面した塩水湖。夕日スポットとしても人気',
+        ],
+        mapUrl: 'https://www.google.com/maps/search/三方五湖',
+        links: [
+            { label: '🌐 公式サイト（若狭三方五湖観光）', url: 'https://wakasa-mikatagoko.jp/' },
+            { label: '🚣 カヌー体験予約', url: 'https://www.fuku-e.com/spot/detail_1066.html' },
+            { label: '🏛️ 年縞博物館', url: 'https://varve.pref.fukui.lg.jp/' },
+        ],
+        season: '春〜秋（カヌーは5〜10月）',
+    },
+    {
+        rank: 10,
+        name: '名勝 養浩館庭園',
+        emoji: '🌿',
+        color: '#558b2f',
+        area: '福井市',
+        tag: '庭園',
+        desc: '江戸時代の福井藩主松平家の別邸。回遊式林泉庭園は旧大名庭園の中でも最高傑作のひとつと評され、日本の庭園ランキング常連。',
+        access: '🚉 福井駅から徒歩約15分（最も福井駅に近い観光スポット）\n🚗 車：敦賀駅から約40分（駐車場なし・公共交通推奨）',
+        hours: '9:00〜19:00（3/1〜11/5）9:00〜17:00（11/6〜2月末）年末年始休園',
+        fee: '大人220円 中学生以下・70歳以上無料',
+        tips: [
+            '🍂 秋の紅葉ライトアップ（10月末〜11月）は絶景。夜間開園あり',
+            '🌸 春の桜シーズンも美しく、外国人観光客にも大人気',
+            '📍 一乗谷朝倉氏遺跡と合わせて半日コースとして組み合わせやすい',
+            '💡 入口で音声ガイド（無料）を借りると庭の歴史がよくわかる',
+        ],
+        mapUrl: 'https://www.google.com/maps/search/養浩館庭園+福井',
+        links: [
+            { label: '🌐 公式サイト（福井市）', url: 'http://fukuisan.jp/ja/yokokan/' },
+            { label: '🍂 ライトアップ情報', url: 'https://www.city.fukui.lg.jp/kankou/bunka/sisetu/yokokangarden.html' },
+            { label: '🗺️ アクセス（福井駅から徒歩15分）', url: 'https://www.google.com/maps/dir/福井駅/養浩館庭園' },
+        ],
+        season: '秋（紅葉ライトアップ）・春（桜）',
+    },
+];
+
+// ============================================================
+// 敦賀駅構内ナビデータ（号車・番線・目的地から方向を判定）
+// データソース: 乗車位置案内サイト・JR西日本公式
+// ============================================================
+const TSURUGA_NAV = {
+
+    // 各号車から乗換口（2階）までのエスカレーター位置
+    // 降り口方向：11・13番線=左側、12・14番線=右側
+    escalator: {
+        // 号車: 乗換口に向かって「前方(東京側)」か「後方(敦賀側)」か
+        3:  { side: 'front', note: '3号車 進行方向側ドア → エスカレーター' },
+        4:  { side: 'front', note: '4号車 進行方向側ドア → エスカレーター' },
+        5:  { side: 'rear',  note: '5号車 進行方向反対側ドア → エレベーター' },
+        6:  { side: 'both',  note: '6号車 どちらのドアでも → エレベーター' },
+        8:  { side: 'front', note: '8号車 進行方向側ドア → 階段' },
+        9:  { side: 'front', note: '9号車 進行方向側ドア → エスカレーター' },
+    },
+
+    // 2階コンコースから各施設への方向
+    // 乗換口を出たら: 左=東口(やまなみ口)、右奥=西口(まちなみ口)
+    // 正面=31〜34番線ホームへの階段
+    floor2: {
+        toilet:    { dir: 'straight', text: '乗換口を出て正面方向 コンコース右手にトイレ' },
+        bento:     { dir: 'straight', text: '乗換口を出て正面方向 コンコース内の駅弁自販機（かにめし・焼鯖すし）' },
+        omiyage:   { dir: 'straight', text: '乗換口を出て正面方向 コンコース「おみやげ処敦賀」' },
+        locker:    { dir: 'exit',     text: '乗換口を出て右奥の通路→西口方面 コインロッカーは改札外1階' },
+        tokkyu_sb:  { dir: 'straight', text: '乗換口を出て正面のエスカレーターで1階へ→33番のりば（サンダーバード）' },
+        tokkyu_sr:  { dir: 'straight', text: '乗換口を出て正面のエスカレーターで1階へ→34番のりば（しらさぎ）' },
+        shinkansen_up:{ dir: 'straight', text: '正面の階段・エスカレーターで3階新幹線ホームへ' },
+    },
+
+    // 番線から降り口方向を判定
+    // 11・13番線: 左側が降り口（1号車=東京側が右）
+    // 12・14番線: 右側が降り口
+    getExitSide: function(platform) {
+        return (platform === 11 || platform === 13) ? 'left' : 'right';
+    },
+
+    // 号車から最寄り設備を取得
+    getNearestEscalator: function(carNum) {
+        const cars = [3, 4, 5, 6, 8, 9];
+        let nearest = cars[0];
+        let minDiff = Math.abs(carNum - cars[0]);
+        for (const c of cars) {
+            const diff = Math.abs(carNum - c);
+            if (diff < minDiff) { minDiff = diff; nearest = c; }
+        }
+        return nearest;
+    },
+};
+
+// 号車・番線・目的地から案内テキストを生成
+function getTsurugaDirections(carNum, platform, destination) {
+    const exitSide = TSURUGA_NAV.getExitSide(platform);
+    const nearCar  = TSURUGA_NAV.getNearestEscalator(carNum);
+    const escInfo  = TSURUGA_NAV.escalator[nearCar];
+    const destInfo = TSURUGA_NAV.floor2[destination];
+    if (!destInfo) return null;
+
+    const exitText = exitSide === 'left' ? '左側のドアから降りる' : '右側のドアから降りる';
+    const escType  = escInfo.note.includes('エレベーター') ? 'エレベーター' :
+                     escInfo.note.includes('階段') ? '階段' : 'エスカレーター';
+
+    let steps = [];
+    steps.push(`① ${exitText}（${platform}番線）`);
+    steps.push(`② ${carNum}号車から → 最寄り${escType}は${nearCar}号車付近`);
+    steps.push(`③ ${escType}で2階 乗換コンコースへ`);
+    steps.push(`④ ${destInfo.text}`);
+
+    if (destination === 'tokkyu_down') {
+        steps.push(`⑤ エスカレーター・階段で1階 在来線特急ホームへ`);
+    }
+
+    return steps;
+}
+
+
+// ---------- ユーティリティ ----------
+function $(id) { return document.getElementById(id); }
+function safe(id, fn) { const el = $(id); if (el) fn(el); }
+
+// ---------- テーマ切り替え ----------
+function toggleThemeSetup() {
+    const isGlass = $('themeSwitchSetup').checked;
+    safe('themeTextSetup', el => el.innerText = isGlass ? 'すりガラス' : 'ダーク');
+    document.body.classList.toggle('glass-theme', isGlass);
+}
+function updatePlatform() {
+    const sel = $('platformSelect');
+    if (sel) {
+        tripData.platform = parseInt(sel.value);
+        updateNavi();
+    }
+}
+
+function toggleTheme() {
+    const isGlass = $('themeSwitch').checked;
+    safe('themeText', el => el.innerText = isGlass ? 'すりガラス' : 'ダーク');
+    document.body.classList.toggle('glass-theme', isGlass);
+}
+
+// ---------- 往路/復路切り替え ----------
+function updateSpotsBtn() {
+    // 往路かつ出発駅が都会（都会→福井）のときだけ観光スポットボタンを表示
+    const fromSel = $('inp_from_sel');
+    const from = fromSel ? fromSel.value : '';
+    const tokai = ['京都駅','大阪駅','新大阪駅','名古屋駅','東京駅','品川駅','新横浜駅'];
+    const isTokaiFukui = tripDirection === 'go' && tokai.includes(from);
+    safe('spotsSetupBtn', el => el.style.display = isTokaiFukui ? '' : 'none');
+}
+
+function setDirection(dir) {
+    tripDirection = dir;
+    safe('dirGo',   el => el.classList.toggle('active', dir === 'go'));
+    safe('dirBack', el => el.classList.toggle('active', dir === 'back'));
+
+    if (dir === 'back') {
+        const fromSel = $('inp_from_sel');
+        const toSel   = $('inp_to_sel');
+        if (fromSel && toSel) {
+            const tmp = fromSel.value;
+            fromSel.value = toSel.value;
+            toSel.value   = tmp;
+        }
+        safe('dirHint', el => el.textContent = '↩ 復路モード');
+        safe('hotelSetupStep', el => el.style.display = 'none');
+        safe('spotsSetupBtn',  el => el.style.display = 'none');
+    } else {
+        safe('dirHint', el => el.textContent = '');
+        safe('hotelSetupStep', el => el.style.display = '');
+        updateSpotsBtn();
+    }
+    filterToStations();
+}
+
+// ---------- 到着駅フィルタ ----------
+function filterToStations() {
+    const fromSel = $('inp_from_sel');
+    const toSel   = $('inp_to_sel');
+    if (!fromSel || !toSel) return;
+
+    const from = fromSel.value;
+    const fukui  = ['福井駅','金沢駅','富山駅','加賀温泉駅','芦原温泉駅','越前たけふ駅'];
+    const osaka  = ['京都駅','大阪駅','新大阪駅'];
+    const nagoya = ['名古屋駅'];
+    const tokyo  = ['東京駅','品川駅','新横浜駅'];
+
+    const fromFukui  = fukui.includes(from);
+    const fromOsaka  = osaka.includes(from);
+    const fromNagoya = nagoya.includes(from);
+    const fromTokyo  = tokyo.includes(from);
+
+    Array.from(toSel.options).forEach(opt => {
+        const v = opt.value;
+        let valid = false;
+        if (fromFukui)  valid = osaka.includes(v) || nagoya.includes(v) || tokyo.includes(v);
+        if (fromOsaka)  valid = fukui.includes(v);
+        if (fromNagoya) valid = fukui.includes(v);
+        if (fromTokyo)  valid = fukui.includes(v);
+        opt.disabled = !valid;
+        opt.style.color = valid ? '' : '#bbb';
+    });
+
+    if (toSel.selectedOptions[0] && toSel.selectedOptions[0].disabled) {
+        const first = Array.from(toSel.options).find(o => !o.disabled);
+        if (first) toSel.value = first.value;
+    }
+    searchTrain();
+}
+
+// ---------- 初期化 ----------
+window.addEventListener('DOMContentLoaded', () => {
+    // 日時デフォルト
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    safe('inp_datetime', el => el.value = now.toISOString().slice(0, 16));
+    // 曜日
+    const days = ['日','月','火','水','木','金','土'];
+    safe('inp_weekday', el => el.value = days[now.getDay()]);
+    // フィルタ初期化
+    filterToStations();
+    // ダイヤ改正チェック
+    checkDiaRevision();
+    // 電波状況初期チェック
+    updateNetworkBar();
+    // 観光スポットボタン初期状態
+    updateSpotsBtn();
+});
+
+// ---------- ダイヤ改正チェック ----------
+const TIMETABLE_INFO = {
+    validUntil:     '2027-03-13',
+    nextRevision:   '2027-03-14',
+    warnDaysBefore: 7,
+    warnMessage:  '🔔 <strong>まもなくダイヤ改正があります。</strong>最新情報は <a href="https://www.jr-odekake.net/" target="_blank">JR公式</a> でご確認ください。',
+    alertMessage: '⚠️ <strong>ダイヤ改正後の時刻表に更新中です。</strong><a href="https://www.jr-odekake.net/" target="_blank">JR公式</a> でご確認ください。',
+};
+function checkDiaRevision() {
+    const banner = $('diarenBanner');
+    if (!banner) return;
+    const today    = new Date(); today.setHours(0,0,0,0);
+    const until    = new Date(TIMETABLE_INFO.validUntil);
+    const warnFrom = new Date(until);
+    warnFrom.setDate(warnFrom.getDate() - TIMETABLE_INFO.warnDaysBefore + 1);
+    if (today > until) {
+        banner.className = 'diaren-banner alert';
+        banner.innerHTML = TIMETABLE_INFO.alertMessage;
+        banner.style.display = '';
+    } else if (today >= warnFrom) {
+        banner.className = 'diaren-banner warn';
+        banner.innerHTML = TIMETABLE_INFO.warnMessage;
+        banner.style.display = '';
+    } else {
+        banner.style.display = 'none';
+    }
+}
+
+// ---------- 時刻表データ（2026年3月14日改正版） ----------
+
+// ============================================================
+// ダイヤ改正履歴
+// ============================================================
+// Ver.1.0  2024-03-16改正対応
+//   - 北陸新幹線敦賀延伸開業
+//   - つるぎ（福井〜敦賀）新設
+//   - サンダーバード・しらさぎ 敦賀発着に短縮
+//   - かがやき・はくたか 敦賀〜東京 直通運転
+//
+// Ver.2.0  2026-03-14改正対応（現行版）
+//   - つるぎ全便時刻をJR公式PDFより更新（下り26便・上り27便）
+//   - サンダーバード接続便をPDF乗継表より更新
+//   - かがやき・はくたか 福井発着時刻を公式PDFより更新
+//   - しらさぎ 名古屋〜敦賀 駅探データより更新
+//   - 敦賀到着番線データを全便に追加
+// ============================================================
+
+// 時刻表データバージョン
+const TIMETABLE_VERSION = {
+    version:    '2.0',
+    revised:    '2026年3月14日改正版',
+    updatedAt:  '2026年6月',
+    source:     'JR公式PDF・駅探',
+    nextCheck:  '次回ダイヤ改正時に要確認',
+};
+
+const TIMETABLE = {
+    // 2026年3月14日改正版（JR公式PDFより）
+
+    // ① 福井→大阪（つるぎ→サンダーバード）
+    'fukui_osaka': [
+    {train:'つるぎ',num:'1号',platform:11,depTime:'06:36',arrTsuruga:'06:57',depTsuruga:'07:05',nextNum:'2号',arrDest:'08:34',transferMin:8},
+    {train:'つるぎ',num:'3号',platform:14,depTime:'07:10',arrTsuruga:'07:27',depTsuruga:'07:35',nextNum:'4号',arrDest:'09:06',transferMin:8},
+    {train:'つるぎ',num:'5号',platform:11,depTime:'07:38',arrTsuruga:'07:59',depTsuruga:'08:07',nextNum:'6号',arrDest:'09:33',transferMin:8},
+    {train:'つるぎ',num:'7号',platform:12,depTime:'08:12',arrTsuruga:'08:29',depTsuruga:'08:37',nextNum:'8号',arrDest:'10:03',transferMin:8},
+    {train:'つるぎ',num:'9号',platform:11,depTime:'08:38',arrTsuruga:'08:59',depTsuruga:'09:07',nextNum:'10号',arrDest:'10:33',transferMin:8},
+    {train:'つるぎ',num:'11号',platform:12,depTime:'09:08',arrTsuruga:'09:25',depTsuruga:'09:39',nextNum:'12号',arrDest:'11:02',transferMin:14},
+    {train:'つるぎ',num:'13号',platform:13,depTime:'09:41',arrTsuruga:'10:02',depTsuruga:'10:14',nextNum:'14号',arrDest:'11:36',transferMin:12},
+    {train:'つるぎ',num:'15号',platform:11,depTime:'10:19',arrTsuruga:'10:36',depTsuruga:'10:44',nextNum:'16号',arrDest:'12:06',transferMin:8},
+    {train:'つるぎ',num:'17号',platform:12,depTime:'10:41',arrTsuruga:'11:01',depTsuruga:'11:14',nextNum:'18号',arrDest:'12:36',transferMin:13},
+    {train:'つるぎ',num:'19号',platform:11,depTime:'11:41',arrTsuruga:'12:02',depTsuruga:'12:14',nextNum:'20号',arrDest:'13:36',transferMin:12},
+    {train:'つるぎ',num:'21号',platform:13,depTime:'12:41',arrTsuruga:'13:02',depTsuruga:'13:14',nextNum:'22号',arrDest:'14:36',transferMin:12},
+    {train:'つるぎ',num:'23号',platform:11,depTime:'13:41',arrTsuruga:'14:02',depTsuruga:'14:14',nextNum:'24号',arrDest:'15:36',transferMin:12},
+    {train:'つるぎ',num:'25号',platform:11,depTime:'14:41',arrTsuruga:'15:02',depTsuruga:'15:14',nextNum:'26号',arrDest:'16:36',transferMin:12},
+    {train:'つるぎ',num:'27号',platform:13,depTime:'15:19',arrTsuruga:'15:36',depTsuruga:'15:44',nextNum:'28号',arrDest:'17:06',transferMin:8},
+    {train:'つるぎ',num:'29号',platform:11,depTime:'15:40',arrTsuruga:'16:01',depTsuruga:'16:13',nextNum:'30号',arrDest:'17:35',transferMin:12},
+    {train:'つるぎ',num:'31号',platform:11,depTime:'16:18',arrTsuruga:'16:35',depTsuruga:'16:44',nextNum:'32号',arrDest:'18:06',transferMin:9},
+    {train:'つるぎ',num:'33号',platform:12,depTime:'16:41',arrTsuruga:'17:02',depTsuruga:'17:14',nextNum:'34号',arrDest:'18:36',transferMin:12},
+    {train:'つるぎ',num:'35号',platform:13,depTime:'17:19',arrTsuruga:'17:36',depTsuruga:'17:44',nextNum:'36号',arrDest:'19:09',transferMin:8},
+    {train:'つるぎ',num:'37号',platform:11,depTime:'17:38',arrTsuruga:'17:59',depTsuruga:'18:09',nextNum:'38号',arrDest:'19:35',transferMin:10},
+    {train:'つるぎ',num:'39号',platform:13,depTime:'18:19',arrTsuruga:'18:36',depTsuruga:'18:45',nextNum:'40号',arrDest:'20:10',transferMin:9},
+    {train:'つるぎ',num:'41号',platform:12,depTime:'18:41',arrTsuruga:'19:02',depTsuruga:'19:14',nextNum:'42号',arrDest:'20:37',transferMin:12},
+    {train:'つるぎ',num:'43号',platform:11,depTime:'19:15',arrTsuruga:'19:32',depTsuruga:'19:45',nextNum:'44号',arrDest:'21:12',transferMin:13},
+    {train:'つるぎ',num:'45号',platform:12,depTime:'19:42',arrTsuruga:'20:02',depTsuruga:'20:17',nextNum:'46号',arrDest:'21:44',transferMin:15},
+    {train:'つるぎ',num:'47号',platform:14,depTime:'20:39',arrTsuruga:'21:00',depTsuruga:'21:11',nextNum:'48号',arrDest:'22:37',transferMin:11},
+    {train:'つるぎ',num:'49号',platform:13,depTime:'21:32',arrTsuruga:'21:53',depTsuruga:'22:07',nextNum:'50号',arrDest:'23:35',transferMin:14},
+    ],
+
+    // ② 福井→名古屋（つるぎ→しらさぎ）
+    'fukui_nagoya': [
+    {train:'つるぎ',num:'1号',platform:11,depTime:'06:36',arrTsuruga:'06:57',depTsuruga:'07:11',nextNum:'1号',arrDest:'08:51',transferMin:14},
+    {train:'つるぎ',num:'3号',platform:14,depTime:'07:10',arrTsuruga:'07:27',depTsuruga:'09:11',nextNum:'3号',arrDest:'10:49',transferMin:104},
+    {train:'つるぎ',num:'5号',platform:11,depTime:'07:38',arrTsuruga:'07:59',depTsuruga:'09:11',arrDest:'10:49',transferMin:72},
+    {train:'つるぎ',num:'7号',platform:12,depTime:'08:12',arrTsuruga:'08:29',depTsuruga:'09:11',arrDest:'10:49',transferMin:42},
+    {train:'つるぎ',num:'9号',platform:11,depTime:'08:38',arrTsuruga:'08:59',depTsuruga:'09:11',arrDest:'10:49',transferMin:12},
+    {train:'つるぎ',num:'11号',platform:12,depTime:'09:08',arrTsuruga:'09:25',depTsuruga:'11:10',nextNum:'5号',arrDest:'12:48',transferMin:105},
+    {train:'つるぎ',num:'13号',platform:13,depTime:'09:41',arrTsuruga:'10:02',depTsuruga:'11:10',arrDest:'12:48',transferMin:68},
+    {train:'つるぎ',num:'15号',platform:11,depTime:'10:19',arrTsuruga:'10:36',depTsuruga:'11:10',arrDest:'12:48',transferMin:34},
+    {train:'つるぎ',num:'17号',platform:12,depTime:'10:41',arrTsuruga:'11:01',depTsuruga:'11:10',arrDest:'12:48',transferMin:9},
+    {train:'つるぎ',num:'19号',platform:11,depTime:'11:41',arrTsuruga:'12:02',depTsuruga:'13:10',nextNum:'7号',arrDest:'14:48',transferMin:68},
+    {train:'つるぎ',num:'21号',platform:13,depTime:'12:41',arrTsuruga:'13:02',depTsuruga:'13:10',arrDest:'14:48',transferMin:8},
+    {train:'つるぎ',num:'23号',platform:11,depTime:'13:41',arrTsuruga:'14:02',depTsuruga:'15:10',nextNum:'9号',arrDest:'16:49',transferMin:68},
+    {train:'つるぎ',num:'25号',platform:11,depTime:'14:41',arrTsuruga:'15:02',depTsuruga:'15:10',arrDest:'16:49',transferMin:8},
+    {train:'つるぎ',num:'27号',platform:13,depTime:'15:19',arrTsuruga:'15:36',depTsuruga:'16:09',nextNum:'11号',arrDest:'17:49',transferMin:33},
+    {train:'つるぎ',num:'29号',platform:11,depTime:'15:40',arrTsuruga:'16:01',depTsuruga:'16:09',arrDest:'17:49',transferMin:8},
+    {train:'つるぎ',num:'31号',platform:11,depTime:'16:18',arrTsuruga:'16:35',depTsuruga:'18:08',nextNum:'13号',arrDest:'19:46',transferMin:93},
+    {train:'つるぎ',num:'33号',platform:12,depTime:'16:41',arrTsuruga:'17:02',depTsuruga:'18:08',arrDest:'19:46',transferMin:66},
+    {train:'つるぎ',num:'35号',platform:13,depTime:'17:19',arrTsuruga:'17:36',depTsuruga:'18:08',arrDest:'19:46',transferMin:32},
+    {train:'つるぎ',num:'37号',platform:11,depTime:'17:38',arrTsuruga:'17:59',depTsuruga:'18:08',arrDest:'19:46',transferMin:9},
+    {train:'つるぎ',num:'39号',platform:13,depTime:'18:19',arrTsuruga:'18:36',depTsuruga:'20:11',nextNum:'15号',arrDest:'21:49',transferMin:95},
+    {train:'つるぎ',num:'41号',platform:12,depTime:'18:41',arrTsuruga:'19:02',depTsuruga:'20:11',arrDest:'21:49',transferMin:69},
+    {train:'つるぎ',num:'43号',platform:11,depTime:'19:15',arrTsuruga:'19:32',depTsuruga:'20:11',arrDest:'21:49',transferMin:39},
+    {train:'つるぎ',num:'45号',platform:12,depTime:'19:42',arrTsuruga:'20:02',depTsuruga:'20:11',arrDest:'21:49',transferMin:9},
+    {train:'つるぎ',num:'47号',platform:14,depTime:'20:39',arrTsuruga:'21:00',depTsuruga:'20:11',arrDest:'21:49',transferMin:-49},
+    {train:'つるぎ',num:'49号',platform:13,depTime:'21:32',arrTsuruga:'21:53',depTsuruga:'20:11',arrDest:'21:49',transferMin:-102},
+    {train:'つるぎ',num:'61号',platform:12,depTime:'23:10',arrTsuruga:'23:31',depTsuruga:'20:11',arrDest:'21:49',transferMin:-200},
+    ],
+
+    // ③ 福井→東京（かがやき・はくたか 直通）
+    'fukui_tokyo': [
+    {train:'かがやき',num:'502号',depTime:'06:33',arrTsuruga:'直通',depTsuruga:'直通',arrDest:'09:32',transferMin:0},
+    {train:'はくたか',num:'554号',depTime:'07:45',arrTsuruga:'直通',depTsuruga:'直通',arrDest:'10:37',transferMin:0},
+    {train:'かがやき',num:'506号',depTime:'08:32',arrTsuruga:'直通',depTsuruga:'直通',arrDest:'11:36',transferMin:0},
+    {train:'かがやき',num:'508号',depTime:'09:39',arrTsuruga:'直通',depTsuruga:'直通',arrDest:'12:20',transferMin:0},
+    {train:'はくたか',num:'560号',depTime:'10:20',arrTsuruga:'直通',depTsuruga:'直通',arrDest:'13:36',transferMin:0},
+    {train:'はくたか',num:'562号',depTime:'11:20',arrTsuruga:'直通',depTsuruga:'直通',arrDest:'14:36',transferMin:0},
+    {train:'はくたか',num:'564号',depTime:'12:20',arrTsuruga:'直通',depTsuruga:'直通',arrDest:'15:36',transferMin:0},
+    {train:'はくたか',num:'566号',depTime:'13:20',arrTsuruga:'直通',depTsuruga:'直通',arrDest:'16:36',transferMin:0},
+    {train:'はくたか',num:'568号',depTime:'14:09',arrTsuruga:'直通',depTsuruga:'直通',arrDest:'17:36',transferMin:0},
+    {train:'かがやき',num:'510号',depTime:'15:23',arrTsuruga:'直通',depTsuruga:'直通',arrDest:'18:28',transferMin:0},
+    {train:'かがやき',num:'512号',depTime:'16:23',arrTsuruga:'直通',depTsuruga:'直通',arrDest:'19:20',transferMin:0},
+    {train:'かがやき',num:'514号',depTime:'17:31',arrTsuruga:'直通',depTsuruga:'直通',arrDest:'20:23',transferMin:0},
+    {train:'かがやき',num:'516号',depTime:'18:54',arrTsuruga:'直通',depTsuruga:'直通',arrDest:'21:56',transferMin:0},
+    {train:'かがやき',num:'518号',depTime:'20:33',arrTsuruga:'直通',depTsuruga:'直通',arrDest:'23:32',transferMin:0},
+    ],
+
+    // ④ 大阪→福井（サンダーバード→つるぎ）
+    'osaka_fukui': [
+    {train:'サンダーバード',num:'1号',depTime:'06:30',arrTsuruga:'07:54',depTsuruga:'08:06',nextNum:'2号',platform:13,arrDest:'08:24',transferMin:12},
+    {train:'サンダーバード',num:'3号',depTime:'07:00',arrTsuruga:'08:23',depTsuruga:'08:31',nextNum:'4号',platform:11,arrDest:'08:52',transferMin:8},
+    {train:'サンダーバード',num:'5号',depTime:'07:40',arrTsuruga:'09:03',depTsuruga:'09:11',nextNum:'6号',platform:12,arrDest:'09:28',transferMin:8},
+    {train:'サンダーバード',num:'7号',depTime:'08:10',arrTsuruga:'09:37',depTsuruga:'09:46',nextNum:'8号',platform:11,arrDest:'10:07',transferMin:9},
+    {train:'サンダーバード',num:'9号',depTime:'08:42',arrTsuruga:'10:03',depTsuruga:'10:18',nextNum:'10号',platform:12,arrDest:'10:35',transferMin:15},
+    {train:'サンダーバード',num:'11号',depTime:'09:12',arrTsuruga:'10:35',depTsuruga:'10:43',nextNum:'12号',platform:13,arrDest:'11:05',transferMin:8},
+    {train:'サンダーバード',num:'13号',depTime:'09:41',arrTsuruga:'11:02',depTsuruga:'11:17',nextNum:'14号',platform:11,arrDest:'11:35',transferMin:15},
+    {train:'サンダーバード',num:'15号',depTime:'10:09',arrTsuruga:'11:30',depTsuruga:'11:39',nextNum:'16号',platform:12,arrDest:'12:00',transferMin:9},
+    {train:'サンダーバード',num:'17号',depTime:'10:42',arrTsuruga:'12:03',depTsuruga:'12:17',nextNum:'18号',platform:12,arrDest:'12:35',transferMin:14},
+    {train:'サンダーバード',num:'19号',depTime:'11:12',arrTsuruga:'12:33',depTsuruga:'12:42',nextNum:'20号',platform:11,arrDest:'13:03',transferMin:9},
+    {train:'サンダーバード',num:'21号',depTime:'12:12',arrTsuruga:'13:33',depTsuruga:'13:41',nextNum:'22号',platform:11,arrDest:'14:02',transferMin:8},
+    {train:'サンダーバード',num:'23号',depTime:'12:42',arrTsuruga:'14:03',depTsuruga:'14:11',nextNum:'24号',platform:12,arrDest:'14:32',transferMin:8},
+    {train:'サンダーバード',num:'25号',depTime:'13:12',arrTsuruga:'14:33',depTsuruga:'14:41',nextNum:'26号',platform:11,arrDest:'15:03',transferMin:8},
+    {train:'サンダーバード',num:'27号',depTime:'14:12',arrTsuruga:'15:33',depTsuruga:'15:41',nextNum:'28号',platform:11,arrDest:'16:02',transferMin:8},
+    {train:'サンダーバード',num:'29号',depTime:'15:09',arrTsuruga:'16:30',depTsuruga:'16:39',nextNum:'30号',platform:12,arrDest:'17:01',transferMin:9},
+    {train:'サンダーバード',num:'31号',depTime:'15:40',arrTsuruga:'17:01',depTsuruga:'17:08',nextNum:'32号',platform:11,arrDest:'17:25',transferMin:7},
+    {train:'サンダーバード',num:'33号',depTime:'16:09',arrTsuruga:'17:29',depTsuruga:'17:38',nextNum:'34号',platform:12,arrDest:'17:59',transferMin:9},
+    {train:'サンダーバード',num:'35号',depTime:'16:40',arrTsuruga:'18:01',depTsuruga:'18:09',nextNum:'36号',platform:13,arrDest:'18:26',transferMin:8},
+    {train:'サンダーバード',num:'37号',depTime:'17:09',arrTsuruga:'18:31',depTsuruga:'18:39',nextNum:'38号',platform:11,arrDest:'19:00',transferMin:8},
+    {train:'サンダーバード',num:'39号',depTime:'17:40',arrTsuruga:'19:01',depTsuruga:'19:09',nextNum:'40号',platform:13,arrDest:'19:27',transferMin:8},
+    {train:'サンダーバード',num:'41号',depTime:'18:10',arrTsuruga:'19:31',depTsuruga:'19:39',nextNum:'42号',platform:12,arrDest:'20:00',transferMin:8},
+    {train:'サンダーバード',num:'43号',depTime:'18:42',arrTsuruga:'20:03',depTsuruga:'20:22',nextNum:'44号',platform:11,arrDest:'20:40',transferMin:19},
+    {train:'サンダーバード',num:'45号',depTime:'19:10',arrTsuruga:'20:31',depTsuruga:'20:43',nextNum:'46号',platform:12,arrDest:'21:04',transferMin:12},
+    {train:'サンダーバード',num:'47号',depTime:'20:07',arrTsuruga:'21:28',depTsuruga:'21:42',nextNum:'48号',platform:12,arrDest:'22:03',transferMin:14},
+    {train:'サンダーバード',num:'49号',depTime:'20:54',arrTsuruga:'22:15',depTsuruga:'22:28',nextNum:'50号',platform:12,arrDest:'22:49',transferMin:13},
+    ],
+
+    // ⑤ 名古屋→福井（しらさぎ→つるぎ）
+    'nagoya_fukui': [
+    {train:'しらさぎ',num:'−',depTime:'07:51',arrTsuruga:'09:27',depTsuruga:'09:46',nextNum:'8号',platform:11,arrDest:'10:07',transferMin:19},
+    {train:'しらさぎ',num:'−',depTime:'08:51',arrTsuruga:'10:27',depTsuruga:'10:43',nextNum:'12号',platform:13,arrDest:'11:05',transferMin:16},
+    {train:'しらさぎ',num:'−',depTime:'09:48',arrTsuruga:'11:26',depTsuruga:'11:39',nextNum:'16号',platform:12,arrDest:'12:00',transferMin:13},
+    {train:'しらさぎ',num:'−',depTime:'11:48',arrTsuruga:'13:27',depTsuruga:'13:41',nextNum:'22号',platform:11,arrDest:'14:02',transferMin:14},
+    {train:'しらさぎ',num:'−',depTime:'13:48',arrTsuruga:'15:26',depTsuruga:'15:41',nextNum:'28号',platform:11,arrDest:'16:02',transferMin:15},
+    {train:'しらさぎ',num:'−',depTime:'15:48',arrTsuruga:'17:26',depTsuruga:'17:38',nextNum:'34号',platform:12,arrDest:'17:59',transferMin:12},
+    {train:'しらさぎ',num:'−',depTime:'17:51',arrTsuruga:'19:27',depTsuruga:'19:39',nextNum:'42号',platform:12,arrDest:'20:00',transferMin:12},
+    {train:'しらさぎ',num:'−',depTime:'19:48',arrTsuruga:'21:26',depTsuruga:'21:42',nextNum:'48号',platform:12,arrDest:'22:03',transferMin:16},
+    ],
+
+    // ⑥ 東京→福井（かがやき・はくたか 直通）
+    'tokyo_fukui': [
+    {train:'かがやき',num:'501号',depTime:'06:16',arrTsuruga:'直通',depTsuruga:'直通',arrDest:'09:13',transferMin:0},
+    {train:'かがやき',num:'503号',depTime:'07:20',arrTsuruga:'直通',depTsuruga:'直通',arrDest:'10:11',transferMin:0},
+    {train:'かがやき',num:'505号',depTime:'08:11',arrTsuruga:'直通',depTsuruga:'直通',arrDest:'11:11',transferMin:0},
+    {train:'かがやき',num:'507号',depTime:'10:00',arrTsuruga:'直通',depTsuruga:'直通',arrDest:'12:57',transferMin:0},
+    {train:'はくたか',num:'557号',depTime:'11:04',arrTsuruga:'直通',depTsuruga:'直通',arrDest:'14:09',transferMin:0},
+    {train:'はくたか',num:'559号',depTime:'12:04',arrTsuruga:'直通',depTsuruga:'直通',arrDest:'15:09',transferMin:0},
+    {train:'はくたか',num:'561号',depTime:'13:04',arrTsuruga:'直通',depTsuruga:'直通',arrDest:'16:09',transferMin:0},
+    {train:'はくたか',num:'563号',depTime:'14:04',arrTsuruga:'直通',depTsuruga:'直通',arrDest:'17:09',transferMin:0},
+    {train:'はくたか',num:'565号',depTime:'15:04',arrTsuruga:'直通',depTsuruga:'直通',arrDest:'18:09',transferMin:0},
+    {train:'かがやき',num:'509号',depTime:'16:00',arrTsuruga:'直通',depTsuruga:'直通',arrDest:'18:54',transferMin:0},
+    {train:'かがやき',num:'511号',depTime:'17:24',arrTsuruga:'直通',depTsuruga:'直通',arrDest:'20:20',transferMin:0},
+    {train:'かがやき',num:'513号',depTime:'18:24',arrTsuruga:'直通',depTsuruga:'直通',arrDest:'21:16',transferMin:0},
+    {train:'かがやき',num:'515号',depTime:'20:00',arrTsuruga:'直通',depTsuruga:'直通',arrDest:'22:55',transferMin:0},
+    ],
+};
+
+// ---------- ルートパターン判定 ----------
+function resolveRoutePattern(from, to) {
+    const fukui  = ['福井駅','金沢駅','富山駅','加賀温泉駅','芦原温泉駅','越前たけふ駅'];
+    const osaka  = ['京都駅','大阪駅','新大阪駅'];
+    const nagoya = ['名古屋駅'];
+    const tokyo  = ['東京駅','品川駅','新横浜駅'];
+    if (fukui.includes(from) && osaka.includes(to))   return 'fukui_osaka';
+    if (fukui.includes(from) && nagoya.includes(to))  return 'fukui_nagoya';
+    if (fukui.includes(from) && tokyo.includes(to))   return 'fukui_tokyo';
+    if (osaka.includes(from)  && fukui.includes(to))  return 'osaka_fukui';
+    if (nagoya.includes(from) && fukui.includes(to))  return 'nagoya_fukui';
+    if (tokyo.includes(from)  && fukui.includes(to))  return 'tokyo_fukui';
+    return fukui.includes(to) ? 'osaka_fukui' : 'fukui_osaka';
+}
+
+// ---------- 時刻表検索 ----------
+function searchTrain() {
+    const fromSel = $('inp_from_sel');
+    const toSel   = $('inp_to_sel');
+    if (!fromSel || !toSel) return;
+
+    const from = fromSel.value;
+    const to   = toSel.value;
+    if (!from || !to) return;
+
+    let datetimeVal = $('inp_datetime') ? $('inp_datetime').value : '';
+    if (!datetimeVal) {
+        const now = new Date();
+        datetimeVal = now.toISOString().slice(0,16);
+    }
+
+    const inputTime = datetimeVal.slice(11,16);
+    const [inH, inM] = inputTime.split(':').map(Number);
+    const inputMin = inH * 60 + inM;
+
+    const patternKey = resolveRoutePattern(from, to);
+    const trains = TIMETABLE[patternKey];
+
+    const resultDiv  = $('trainSearchResult');
+    const resultCard = $('trainResultCard');
+    const manualArea = $('trainManualArea');
+
+    if (!trains || !resultDiv || !resultCard || !manualArea) return;
+
+    let best = trains.find(t => {
+        const [h,m] = t.depTime.split(':').map(Number);
+        return h*60+m >= inputMin;
+    }) || trains[trains.length-1];
+
+    // hidden inputにセット
+    safe('inp_trainName', el => el.value = best.train);
+    safe('inp_trainNum',  el => el.value = best.num);
+    safe('inp_trainType', el => el.value = best.train.includes('サンダーバード') || best.train.includes('しらさぎ') ? '特急' : '新幹線');
+    safe('inp_transitMin',el => el.value = best.transferMin);
+    // 敦賀到着時刻をtripDataに保存（ホテル道案内の出発時刻として使用）
+    tripData.arrTsuruga = best.arrTsuruga || '';
+
+    // 番線を自動セット
+    if (best.platform) {
+        tripData.platform = best.platform;
+        const platSel = $('platformSelect');
+        if (platSel) {
+            for (let i = 0; i < platSel.options.length; i++) {
+                if (parseInt(platSel.options[i].value) === best.platform) {
+                    platSel.selectedIndex = i; break;
+                }
+            }
+        }
+    }
+
+    // 乗換後の列車名を取得
+    const pattern = ROUTE_PATTERNS[patternKey];
+    const isDirect = best.arrTsuruga === '直通' || best.arrTsuruga === '（直通）' || best.transferMin === 0;
+    const nextTrain = patternKey === 'fukui_osaka'  ? 'サンダーバード' :
+                      patternKey === 'fukui_nagoya' ? 'しらさぎ' :
+                      patternKey === 'fukui_tokyo'  ? '（乗換なし・直通）' :
+                      patternKey === 'osaka_fukui'  ? 'つるぎ' :
+                      patternKey === 'nagoya_fukui' ? 'つるぎ' :
+                      patternKey === 'tokyo_fukui'  ? '（乗換なし・直通）' : '−';
+    const nextNum = best.nextNum || '';
+    const nextTrainFull = nextNum ? `${nextTrain} ${nextNum}` : nextTrain;
+
+    // 結果カード表示
+    const transferRow = isDirect
+        ? `<div class="train-result-transfer" style="color:#059669; font-weight:700; font-size:1rem;">✅ 乗換なし・直通運転</div>`
+        : `<div class="train-result-transfer">
+            ⇒ 敦賀 ${best.arrTsuruga} 着 ／ ${best.depTsuruga} 発
+           </div>
+           <div style="text-align:center; margin:2px 0 4px;">
+            <span class="train-result-transfermin">乗継 ${best.transferMin}分</span>
+           </div>
+           <div class="train-result-transfer" style="margin-top:2px; color:#4dadf7; font-weight:600;">
+            🚃 乗換：${nextTrainFull}
+           </div>`;
+
+    resultCard.innerHTML = `
+        <div class="train-result-row">
+            <span class="train-result-name">${best.train} ${best.num}</span>
+            <span class="train-result-time">${best.depTime} 発</span>
+        </div>
+        ${transferRow}
+        <div class="train-result-arr">🏁 ${to} ${best.arrDest} 着（目安）</div>
+        <button class="train-result-change" onclick="showManualOverride()">✏️ 便を変更する</button>
+    `;
+
+    resultDiv.style.display = '';
+    manualArea.style.display = 'none';
+}
+
+function showManualOverride() {
+    safe('trainManualArea', el => el.style.display = '');
+}
+
+// ---------- ナビ起動 ----------
+function startApp() {
+    const from = $('inp_from_sel') ? $('inp_from_sel').value.trim() : '';
+    const to   = $('inp_to_sel')   ? $('inp_to_sel').value.trim()   : '';
+
+    if (!from || !to) { alert('出発駅と到着駅を選択してください'); return; }
+
+    // 時刻表検索を実行
+    searchTrain();
+
+    const trainName  = ($('inp_trainName')  && $('inp_trainName').value.trim())  || 'つるぎ';
+    const trainNum   = ($('inp_trainNum')   && $('inp_trainNum').value.trim())   || '−';
+    const trainType  = ($('inp_trainType')  && $('inp_trainType').value)         || '新幹線';
+    const datetime   = ($('inp_datetime')   && $('inp_datetime').value)          || '';
+    const weekday    = ($('inp_weekday')    && $('inp_weekday').value)           || '';
+    const seatType   = ($('inp_seatType')   && $('inp_seatType').value)          || '指定席';
+    const carNum     = parseInt($('inp_car')         && $('inp_car').value)         || 3;
+    const transfers  = parseInt($('inp_transfers')   && $('inp_transfers').value)   || 1;
+    const transitMin = parseInt($('inp_transitMin')  && $('inp_transitMin').value)  || 8;
+    const hotel      = ($('inp_hotel')        && $('inp_hotel').value.trim())        || '';
+    const hotelAddr  = ($('inp_hotelAddress') && $('inp_hotelAddress').value.trim()) || '';
+
+    tripData = {
+        from, to, trainName, trainNum, trainType,
+        datetime, weekday, seatType, carNum, transfers, transitMin,
+        hotel, hotelAddress: hotelAddr,
+        checkin: '', checkout: '',
+        opts: {
+            bento:   $('opt_bento')   ? $('opt_bento').checked   : false,
+            omiyage: $('opt_omiyage') ? $('opt_omiyage').checked : false,
+            smoking: $('opt_smoking') ? $('opt_smoking').checked : false,
+            locker:  $('opt_locker')  ? $('opt_locker').checked  : false,
+            toilet:  $('opt_toilet')  ? $('opt_toilet').checked  : false,
+        }
+    };
+
+    applyTripDataToMain();
+    $('setupScreen').style.display = 'none';
+    $('mainScreen').style.display  = 'block';
+
+    const switchEl = $('themeSwitchSetup');
+    const isGlass  = switchEl ? switchEl.checked : document.body.classList.contains('glass-theme');
+    safe('themeSwitch', el => { el.checked = isGlass; });
+    safe('themeText',   el => { el.innerText = isGlass ? 'すりガラス' : 'ダーク'; });
+}
+
+// ---------- メイン画面に反映 ----------
+function applyTripDataToMain() {
+    const dirLabel = tripDirection === 'back' ? '【復路】' : '【往路】';
+    safe('arrivalLabel',   el => el.innerText = dirLabel + tripData.trainType + '　' + tripData.from + ' → ' + tripData.to);
+    safe('departureTime',  el => el.innerText = tripData.datetime ? tripData.datetime.slice(11,16) : '−');
+    safe('trainLabel',     el => el.innerText = tripData.trainName + ' ' + tripData.trainNum);
+
+    // 号車セレクト
+    const carSel = $('carSelect');
+    if (carSel) {
+        for (let i = 0; i < carSel.options.length; i++) {
+            if (parseInt(carSel.options[i].value) === tripData.carNum) { carSel.selectedIndex = i; break; }
+        }
+    }
+
+    // カウントダウン初期化
+    timeLeft = tripData.transitMin * 60;
+
+    // 行動オプションボタン表示切り替え
+    const opts = tripData.opts;
+    safe('btnToilet',  el => el.style.display = opts.toilet  ? '' : 'none');
+    safe('btnSmoking', el => el.style.display = opts.smoking ? '' : 'none');
+    safe('btnLocker',  el => el.style.display = opts.locker  ? '' : 'none');
+    safe('btnBento',   el => el.style.display = opts.bento   ? '' : 'none');
+    safe('btnOmiyage', el => el.style.display = opts.omiyage ? '' : 'none');
+
+    currentMode = 'direct';
+    safe('btnDirect', el => el.classList.add('active'));
+    ['Toilet','Smoking','Locker','Bento','Omiyage'].forEach(m => {
+        safe('btn'+m, el => el.classList.remove('active'));
+    });
+
+    // ホテル情報
+    // ホテル情報はtripDataから直接参照（モーダル表示時に自動セット）
+    safe('hotelCheckinInfo',el => el.style.display = 'none');
+
+    // 復路時ホテルボタン非表示
+    const hotelSec = document.querySelector('.hotel-section');
+    if (hotelSec) hotelSec.style.display = tripDirection === 'back' ? 'none' : '';
+
+    updateNavi();
+}
+
+// ---------- 入力画面に戻る ----------
+function goBackToSetup() {
+    $('mainScreen').style.display  = 'none';
+    $('setupScreen').style.display = '';
+}
+
+// ---------- カウントダウン ----------
+setInterval(() => {
+    if (timeLeft > 0) {
+        timeLeft--;
+        const min = Math.floor(timeLeft / 60);
+        const sec = timeLeft % 60;
+        safe('countdownTime', el => el.innerText = `${min}分 ${sec}秒`);
+    }
+}, 1000);
+
+// ---------- モード選択 ----------
+function selectMode(mode) {
+    ['btnDirect','btnToilet','btnSmoking','btnLocker','btnBento','btnOmiyage'].forEach(id => {
+        safe(id, el => el.classList.remove('active'));
+    });
+    currentMode = mode;
+    const map = {direct:'btnDirect',toilet:'btnToilet',smoking:'btnSmoking',locker:'btnLocker',bento:'btnBento',omiyage:'btnOmiyage'};
+    if (map[mode]) safe(map[mode], el => el.classList.add('active'));
+    updateNavi();
+}
+
+// ---------- 6パターン ルートデータ ----------
+const ROUTE_PATTERNS = {
+    'fukui_osaka': {
+        label:'福井 → 京都・大阪方面', transferStation:'敦賀駅',
+        stationInfoAvailable: true,
+        nextDirection:'33番のりば（1階・サンダーバード）', directAngle:180,
+        directText:'➔ 2階改札→エスカレーター→1階 33番のりばへ',
+        directCard:(t,c) => `<strong>【敦賀 乗換案内 ➔ 1階 在来線特急】</strong><br>つるぎを降りたら2階乗換コンコース改札を通り、エスカレーターで1階の在来線特急ホームへ。<strong>33番のりば</strong>からサンダーバード（京都・大阪方面）にお乗り換えください。<br><small>⚠️ 高低差大・最短8分。焦らず表示に従って移動を</small>`,
+        toilet:'🚻 <strong>トイレ：</strong>2階乗換コンコース（改札内）と各ホーム端にあります。乗換時間が短いため、できれば乗換前に済ませておきましょう。',
+        smoking:'🚬 <strong>喫煙所：</strong>敦賀駅構内に喫煙スペースはありません。駅外でお済ませください。',
+        locker:'🔒 <strong>コインロッカー：</strong>在来線改札外（1階）にあります。乗換時間が短いため、荷物はあらかじめ少なめに。',
+        bento:'• <strong>越前かにめし:</strong> カニの旨味が詰まった炊き込みご飯<br>• <strong>焼鯖すし:</strong> 肉厚ジューシーな鯖のお寿司<br><small>📍 2階乗換コンコース「おみやげ処敦賀」で購入できます</small>',
+        omiyage:'• <strong>羽二重餅:</strong> きめ細かく柔らかな福井の銘菓<br>• <strong>へしこ:</strong> 鯖の糠漬け、福井の伝統食<br><small>📍 2階乗換コンコース「おみやげ処敦賀」で購入できます</small>',
+    },
+    'fukui_nagoya': {
+        label:'福井 → 名古屋方面', transferStation:'敦賀駅',
+        stationInfoAvailable: true,
+        nextDirection:'34番のりば（1階・しらさぎ）', directAngle:180,
+        directText:'➔ 2階改札→エスカレーター→1階 34番のりばへ',
+        directCard:(t,c) => `<strong>【敦賀 乗換案内 ➔ 1階 在来線特急】</strong><br>つるぎを降りたら2階乗換コンコース改札を通り、エスカレーターで1階の在来線特急ホームへ。<strong>34番のりば</strong>からしらさぎ（名古屋方面）にお乗り換えください。<br><small>⚠️ 高低差大・最短8分。焦らず表示に従って移動を</small>`,
+        toilet:'🚻 <strong>トイレ：</strong>2階乗換コンコース（改札内）と各ホーム端にあります。乗換時間が短いため、できれば乗換前に済ませておきましょう。',
+        smoking:'🚬 <strong>喫煙所：</strong>敦賀駅構内に喫煙スペースはありません。駅外でお済ませください。',
+        locker:'🔒 <strong>コインロッカー：</strong>在来線改札外（1階）にあります。乗換時間が短いため、荷物はあらかじめ少なめに。',
+        bento:'• <strong>越前かにめし:</strong> 敦賀駅定番の炊き込みご飯<br>• <strong>焼鯖すし:</strong> 福井名物の肉厚焼き鯖寿司<br><small>📍 2階乗換コンコース「おみやげ処敦賀」で購入できます</small>',
+        omiyage:'• <strong>羽二重餅:</strong> 福井を代表する和菓子<br>• <strong>水ようかん:</strong> 福井の冬の定番和菓子<br><small>📍 2階乗換コンコース「おみやげ処敦賀」で購入できます</small>',
+    },
+    'fukui_tokyo': {
+        label:'福井 → 東京方面', transferStation:'福井駅',
+        stationInfoAvailable: true,
+        nextDirection:'北陸新幹線 かがやき・はくたか（東京方面）', directAngle:90,
+        directText:'➔ 福井駅 新幹線ホーム（12〜14番のりば）へ',
+        directCard:(t,c) => `<strong>【福井駅 乗車案内】</strong><br>改札を入り新幹線ホーム（12〜14番のりば）へ。<strong>【${t}】</strong>に乗れば東京まで乗換なし直通です。<br><small>🚶 エスカレーターで新幹線コンコース2階へ上がりホームへ</small>`,
+        toilet:'🚻 <strong>トイレ：</strong>改札内コンコース・各ホーム端にあります。乗車前に済ませておきましょう。',
+        smoking:'🚬 <strong>喫煙所：</strong>福井駅構内に喫煙スペースは現在ありません。駅外でお済ませください。',
+        locker:'🔒 <strong>コインロッカー：</strong>在来線改札外コンコースにあります。荷物を預けてから新幹線ホームへどうぞ。',
+        bento:'• <strong>越前かにめし:</strong> 車内でも食べやすい定番駅弁<br>• <strong>焼鯖すし:</strong> 長距離移動のお供に最適<br><small>📍 駅構内1階「FUKUI EKITEN」で購入できます</small>',
+        omiyage:'• <strong>羽二重餅:</strong> 福井を代表する銘菓<br>• <strong>へしこ:</strong> 真空パックで持ち帰りやすい<br><small>📍 駅構内1階「FUKUI EKITEN」で購入できます</small>',
+    },
+    'osaka_fukui': {
+        label:'京都・大阪 → 福井方面', transferStation:'敦賀駅',
+        stationInfoAvailable: true,
+        nextDirection:'北陸新幹線ホーム（3階）福井行き', directAngle:0,
+        directText:'➔ 改札を通り3階 新幹線ホームへ',
+        directCard:(t,c) => `<strong>【敦賀 乗換案内 ➔ 3階 新幹線】</strong><br>サンダーバードを降りたら（1階31〜34番のりば）、2階乗換コンコース改札を通り、エスカレーターで3階新幹線ホームへ。<strong>つるぎ</strong>（福井・金沢方面）にお乗り換えください。<br><small>⚠️ 高低差大・最短8分。焦らず表示に従って移動を</small>`,
+        toilet:'🚻 <strong>トイレ：</strong>2階乗換コンコース（改札内）と各ホーム端にあります。乗換時間が短いため、できれば乗換前に済ませておきましょう。',
+        smoking:'🚬 <strong>喫煙所：</strong>敦賀駅構内に喫煙スペースはありません。駅外でお済ませください。',
+        locker:'🔒 <strong>コインロッカー：</strong>在来線改札外（1階）にあります。乗換時間が短いため、荷物はあらかじめ少なめに。',
+        bento:'• <strong>越前かにめし:</strong> 福井到着前に味わう名物駅弁<br>• <strong>焼鯖すし:</strong> 敦賀名物<br><small>📍 2階乗換コンコース「おみやげ処敦賀」で購入できます</small>',
+        omiyage:'• <strong>羽二重餅:</strong> 福井みやげの定番<br>• <strong>水ようかん:</strong> 福井の冬の定番和菓子<br><small>📍 2階乗換コンコース「おみやげ処敦賀」で購入できます</small>',
+    },
+    'nagoya_fukui': {
+        label:'名古屋 → 福井方面', transferStation:'敦賀駅',
+        stationInfoAvailable: true,
+        nextDirection:'北陸新幹線ホーム（3階）福井行き', directAngle:0,
+        directText:'➔ 改札を通り3階 新幹線ホームへ',
+        directCard:(t,c) => `<strong>【敦賀 乗換案内 ➔ 3階 新幹線】</strong><br>しらさぎを降りたら（1階31〜34番のりば）、2階乗換コンコース改札を通り、エスカレーターで3階新幹線ホームへ。<strong>つるぎ</strong>（福井・金沢方面）にお乗り換えください。<br><small>⚠️ 高低差大・最短8分。焦らず表示に従って移動を</small>`,
+        toilet:'🚻 <strong>トイレ：</strong>2階乗換コンコース（改札内）と各ホーム端にあります。乗換時間が短いため、できれば乗換前に済ませておきましょう。',
+        smoking:'🚬 <strong>喫煙所：</strong>敦賀駅構内に喫煙スペースはありません。駅外でお済ませください。',
+        locker:'🔒 <strong>コインロッカー：</strong>在来線改札外（1階）にあります。乗換時間が短いため、荷物はあらかじめ少なめに。',
+        bento:'• <strong>越前かにめし:</strong> 福井到着前に味わう名物駅弁<br>• <strong>焼鯖すし:</strong> 肉厚な鯖が自慢<br><small>📍 2階乗換コンコース「おみやげ処敦賀」で購入できます</small>',
+        omiyage:'• <strong>羽二重餅:</strong> 柔らかくきめ細かな福井の銘菓<br>• <strong>水ようかん:</strong> 福井独特の和菓子<br><small>📍 2階乗換コンコース「おみやげ処敦賀」で購入できます</small>',
+    },
+    'tokyo_fukui': {
+        label:'東京 → 福井方面', transferStation:'東京駅',
+        stationInfoAvailable: false,
+        nextDirection:'北陸新幹線 かがやき・はくたか（福井方面）', directAngle:90,
+        directText:'➔ 東京駅 北陸新幹線ホームへ（14〜19番のりば）',
+        directCard:(t,c) => `<strong>【東京駅 乗車案内】</strong><br>北陸新幹線ホーム（14〜19番のりば）へ。<strong>【${t}】</strong>に乗れば福井まで乗換なし直通です。<br><small>⚠️ 東京駅の詳細構内情報は未対応です。駅係員または構内案内板をご確認ください</small>`,
+        bento:'',
+        omiyage:'',
+    },
+};
+
+// ---------- コンパスナビ更新 ----------
+function updateNavi() {
+    const patternKey = resolveRoutePattern(tripData.from || '', tripData.to || '');
+    const defaultTrain = (patternKey === 'fukui_tokyo' || patternKey === 'tokyo_fukui')
+        ? 'かがやき' : 'つるぎ';
+    const trainName = tripData.trainName || defaultTrain;
+    const trainNum  = tripData.trainNum  || '−';
+    const carNum    = parseInt(($('carSelect') && $('carSelect').value)) || tripData.carNum || 3;
+
+    safe('trainLabel', el => el.innerText = trainName + ' ' + trainNum);
+
+    const pattern = ROUTE_PATTERNS[patternKey] || ROUTE_PATTERNS['fukui_osaka'];
+    const infoAvailable = pattern.stationInfoAvailable !== false;
+    const stationName = pattern.transferStation || '敦賀駅';
+
+    // 駅名をセクションタイトルに反映
+    // 直通の場合は番線セレクトを非表示
+    const isDirect2 = patternKey === 'fukui_tokyo' || patternKey === 'tokyo_fukui';
+    safe('platformSelect', el => el.style.display = isDirect2 ? 'none' : '');
+    if (isDirect2) safe('naviStationTitle', el => el.innerText = `① ${stationName} 乗車号車`);
+
+    const card    = $('naviCard');
+    const arrow   = $('arrow');
+    const comment = $('compassComment');
+    const target  = $('targetComment');
+    if (!card || !arrow || !comment || !target) return;
+
+    // 情報なし駅のボタンをグレーアウト
+    const optionBtns = ['btnToilet','btnSmoking','btnLocker','btnBento','btnOmiyage'];
+    optionBtns.forEach(id => {
+        safe(id, el => {
+            if (!infoAvailable) {
+                el.style.opacity = '0.35';
+                el.style.pointerEvents = 'none';
+                el.title = `${pattern.transferStation}の構内情報は未対応です`;
+            } else {
+                el.style.opacity = '';
+                el.style.pointerEvents = '';
+                el.title = '';
+            }
+        });
+    });
+
+    // 情報なし駅でオプションが選択されていたらdirectに戻す
+    if (!infoAvailable && currentMode !== 'direct') {
+        currentMode = 'direct';
+        safe('btnDirect', el => el.classList.add('active'));
+        optionBtns.forEach(id => safe(id, el => el.classList.remove('active')));
+    }
+
+    const stairsInfo = carNum <= 3 ? `${carNum}号車からは中央エスカレーターが最短` : `${carNum}号車からは前方エレベーターが便利`;
+    let angle = pattern.directAngle;
+    let text  = pattern.directText;
+
+    // 情報なし駅の未対応メッセージ
+    const noInfoMsg = `<div style="background:rgba(128,128,128,0.1);border:1px solid #888;border-radius:8px;padding:12px;text-align:center;color:#888;">
+        ⚠️ <strong>${pattern.transferStation}の詳細構内情報は未対応です</strong><br>
+        <small>駅係員または構内案内板をご確認ください</small>
+    </div>`;
+
+    if (currentMode === 'direct') {
+        target.innerText   = `📍 ${pattern.transferStation} → ${pattern.nextDirection}`;
+        card.innerHTML     = pattern.directCard(trainName + ' ' + trainNum, carNum);
+        arrow.style.color  = '#0284c7';
+    } else if (currentMode === 'toilet') {
+        target.innerText   = `📍 トイレ（2階 乗換コンコース）`;
+        angle = 180; text  = infoAvailable ? '➔ トイレへ' : '情報なし';
+        const carNum4nav = carNum;
+        const platform4nav = tripData.platform || 11; // tripDataに番線があれば使用
+        const steps = getTsurugaDirections(carNum4nav, platform4nav, 'toilet');
+        const renbaPlatform = (patternKey === 'fukui_nagoya') ? '34番のりば（しらさぎ）' : '33番のりば（サンダーバード）';
+        const stepsHtml = steps ? steps.map(s => `<div style="margin:3px 0">${s}</div>`).join('') : '';
+        card.innerHTML     = infoAvailable && steps
+            ? `<strong>【🚻 トイレへの行き方】</strong><br>${stepsHtml}
+               <div style="margin-top:6px;color:#1a73e8;font-weight:600;">⑤ トイレ後は ${renbaPlatform} へ</div>
+               <br><small>⚠️ 番線は到着時に車内アナウンスで確認してください</small>`
+            : (pattern.toilet || noInfoMsg);
+        arrow.style.color  = '#ea580c';
+    } else if (currentMode === 'smoking') {
+        target.innerText   = `📍 喫煙所`;
+        angle = 270; text  = infoAvailable ? '➔ 喫煙所へ' : '情報なし';
+        card.innerHTML     = infoAvailable
+            ? (pattern.smoking || `<strong>【喫煙所】</strong><br>コンコース内の喫煙コーナーへ。`)
+            : noInfoMsg;
+        arrow.style.color  = '#4b5563';
+    } else if (currentMode === 'bento') {
+        target.innerText   = `📍 駅弁・売店（2階 乗換コンコース）`;
+        angle = 90; text   = infoAvailable ? '➔ 駅弁売店へ' : '情報なし';
+        const stepsB = getTsurugaDirections(carNum, 11, 'bento');
+        const stepsHtmlB = stepsB ? stepsB.map(s => `<div style="margin:3px 0">${s}</div>`).join('') : '';
+        card.innerHTML     = infoAvailable
+            ? `<strong>【🍱 駅弁売店への行き方】</strong><br>
+               ${stepsB ? stepsHtmlB + '<br>' : ''}
+               ${pattern.bento || ''}`
+            : noInfoMsg;
+        arrow.style.color  = '#059669';
+    } else if (currentMode === 'locker') {
+        target.innerText   = `📍 コインロッカー`;
+        angle = 135; text  = infoAvailable ? '➔ コインロッカーへ' : '情報なし';
+        card.innerHTML     = infoAvailable
+            ? (pattern.locker || `<strong>【🔒 コインロッカー】</strong><br>改札付近にあります。`)
+            : noInfoMsg;
+        arrow.style.color  = '#6366f1';
+    } else if (currentMode === 'omiyage') {
+        target.innerText   = `📍 お土産処`;
+        angle = 90; text   = infoAvailable ? '➔ お土産処へ' : '情報なし';
+        card.innerHTML     = infoAvailable
+            ? (pattern.omiyage ? `<strong>【🎁 おすすめお土産】</strong><br>${pattern.omiyage}` : noInfoMsg)
+            : noInfoMsg;
+        arrow.style.color  = '#7c3aed';
+    }
+
+    arrow.style.transform = `rotate(${angle}deg)`;
+    comment.innerText = text;
+}
+
+
+// ---------- 観光スポット画面 ----------
+function showSpotsScreen() {
+    $('spotsScreen').style.display = '';
+    renderSpotsGrid();
+}
+function hideSpotsScreen() {
+    $('spotsScreen').style.display = 'none';
+}
+
+function renderSpotsGrid() {
+    const grid = $('spotsGrid');
+    if (!grid) return;
+    grid.innerHTML = FUKUI_SPOTS.map(s => `
+        <div class="spot-card" onclick="showSpotDetail(${s.rank})" id="spotCard${s.rank}">
+            <div class="spot-rank">${s.rank}位</div>
+            <div class="spot-emoji">${s.emoji}</div>
+            <div class="spot-info">
+                <div class="spot-name">${s.name}</div>
+                <div class="spot-meta">
+                    <span class="spot-area">📍 ${s.area}</span>
+                    <span class="spot-tag">${s.tag}</span>
+                </div>
+            </div>
+            <div class="spot-arrow">›</div>
+        </div>
+    `).join('');
+}
+
+let currentSpotRank = null;
+
+function showSpotDetail(rank) {
+    const s = FUKUI_SPOTS.find(x => x.rank === rank);
+    if (!s) return;
+
+    // カードのアクティブ状態
+    document.querySelectorAll('.spot-card').forEach(el => el.classList.remove('active'));
+    const card = $(`spotCard${rank}`);
+    if (card) {
+        card.classList.add('active');
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    const detail = $('spotDetail');
+    if (!detail) return;
+    detail.style.display = '';
+
+    const tipsHtml = s.tips.map(t =>
+        `<div class="spot-tip">${t}</div>`
+    ).join('');
+
+    const linksHtml = s.links && s.links.length
+        ? `<div style="margin-top:12px;">
+               <div class="spot-detail-label" style="margin-bottom:6px;">🔗 関連リンク</div>
+               ${s.links.map(l => `
+                   <button onclick="openSpotMap('${l.url}')"
+                       style="width:100%; text-align:left; background:rgba(255,255,255,0.06);
+                              border:1px solid rgba(255,255,255,0.12); border-radius:8px;
+                              padding:10px 14px; margin-bottom:6px; color:#7dd3fc;
+                              font-size:0.88rem; cursor:pointer; display:flex; align-items:center; gap:8px;">
+                       ${l.label}
+                   </button>`).join('')}
+           </div>`
+        : '';
+
+    detail.innerHTML = `
+        <div class="spot-detail-panel">
+            <div class="spot-detail-header">
+                <div class="spot-detail-emoji">${s.emoji}</div>
+                <div>
+                    <div class="spot-detail-title">${s.name}</div>
+                    <div class="spot-season-badge">🗓️ ${s.season}</div>
+                </div>
+            </div>
+            <div class="spot-detail-desc">${s.desc}</div>
+
+            <div class="spot-detail-section">
+                <div class="spot-detail-label">🚃 アクセス</div>
+                <div class="spot-detail-value">${s.access}</div>
+            </div>
+            <div class="spot-detail-section">
+                <div class="spot-detail-label">🕐 営業時間・定休</div>
+                <div class="spot-detail-value">${s.hours}</div>
+            </div>
+            <div class="spot-detail-section">
+                <div class="spot-detail-label">💴 料金</div>
+                <div class="spot-detail-value">${s.fee}</div>
+            </div>
+
+            <div class="spot-tips">
+                <div class="spot-detail-label" style="margin-bottom:6px;">💡 知っトク情報</div>
+                ${tipsHtml}
+            </div>
+
+            ${linksHtml}
+
+            <button class="spot-map-btn" onclick="openSpotMap('${s.mapUrl}')">
+                🗺️ Googleマップで見る
+            </button>
+        </div>
+    `;
+
+    detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function openSpotMap(url) {
+    if (!navigator.onLine) {
+        alert('📵 オフラインです。電波のある場所でご利用ください。');
+        return;
+    }
+    window.open(url, '_blank');
+}
+
+// ---------- 電波状況監視 ----------
+function updateNetworkBar() {
+    const bar  = $('networkBar');
+    const text = $('networkText');
+    const note = $('hotelOfflineNote');
+    if (!bar || !text) return;
+
+    if (navigator.onLine) {
+        bar.className  = 'online';
+        text.innerText = 'オンライン（Googleマップ利用可）';
+        if (note) note.style.display = 'none';
+    } else {
+        bar.className  = 'offline';
+        text.innerText = 'オフライン中 — ナビ・時刻表は使えます';
+        if (note) note.style.display = '';
+    }
+}
+
+// オフライン時はホテルモーダルを開かず警告表示
+function showHotelModalWithCheck() {
+    if (!navigator.onLine) {
+        const note = $('hotelOfflineNote');
+        if (note) {
+            note.style.display = '';
+            // 3秒後に消す
+            setTimeout(() => { note.style.display = 'none'; }, 4000);
+        }
+        return;
+    }
+    showHotelModal();
+}
+
+// 電波変化を検知
+window.addEventListener('online',  updateNetworkBar);
+window.addEventListener('offline', updateNetworkBar);
+function showHotelModal() {
+    // tripDataからホテル情報を自動セット
+    const name = tripData.hotel || '';
+    const addr = tripData.hotelAddress || '';
+    safe('hotelDestName', el => el.innerText = name || '（未設定）');
+    safe('hotelDestAddr', el => el.innerText = addr);
+    // 目的地未設定の場合は薄く表示
+    safe('hotelDestName', el => el.style.color = name ? '' : '#888');
+    safe('hotelModal', el => el.style.display = 'flex');
+}
+function hideHotelModal() {
+    safe('hotelModal', el => el.style.display = 'none');
+}
+function closeModalOnOuterClick(e) {
+    if (e.target.id === 'hotelModal') hideHotelModal();
+}
+
+function startHotelNav(mode) {
+    const dest = (tripData.hotelAddress || tripData.hotel || '').trim();
+    if (!dest) { alert('入力画面でホテル名・住所を設定してください'); return; }
+
+    let url = '';
+    if (mode === 'walking') {
+        url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}&travelmode=walking`;
+    } else if (mode === 'transit') {
+        // 敦賀到着時刻をdeparture_timeに設定
+        let depTime = '';
+        try {
+            if (tripData.datetime) {
+                // 乗車日時＋所要時間（敦賀着時刻）を計算
+                const dt = new Date(tripData.datetime);
+                // arrTsurugaをtripDataから取得（searchTrainでセットされている場合）
+                if (tripData.arrTsuruga && tripData.arrTsuruga !== '直通') {
+                    const [h, m] = tripData.arrTsuruga.split(':').map(Number);
+                    dt.setHours(h, m, 0, 0);
+                }
+                depTime = Math.floor(dt.getTime() / 1000);
+            }
+        } catch(e) {}
+        const timeParam = depTime ? `&departure_time=${depTime}` : '';
+        url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}&travelmode=transit${timeParam}`;
+    } else if (mode === 'taxi') {
+        url = `https://www.google.com/maps/search/タクシー乗り場/`;
+    }
+    window.open(url, '_blank');
+}
+
+// 旧関数（互換性のため残す）
+function startHotelNavigation() {
+    startHotelNav('walking');
+}
+</script>
+
+</body>
+</html>
