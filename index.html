@@ -440,9 +440,9 @@
             border-radius: 5px; padding: 4px 10px; font-size: 0.75rem;
             cursor: pointer; width: auto; margin-top: 2px;
         }
+        .setup-field select option:disabled {
+            color: #bbb;
         }
-        /* カレンダーアイコンの色（背景と反対色） */
-
         /* 対応範囲注記 */
         .setup-coverage-note {
             font-size: 0.7rem; color: #ffa94d;
@@ -554,6 +554,7 @@
         .modal-action-btn:hover { background: #0369a1; }
 
     
+        /* カレンダーアイコンの色（背景と反対色） */
         #inp_datetime::-webkit-calendar-picker-indicator {
             filter: invert(1) brightness(2) !important;
             cursor: pointer !important;
@@ -562,17 +563,7 @@
         body.glass-theme #inp_datetime::-webkit-calendar-picker-indicator {
             filter: invert(0) brightness(0) !important;
         }
-
-        /* カレンダーアイコンの色 - 最優先 */
-        #inp_datetime::-webkit-calendar-picker-indicator {
-            filter: invert(1) brightness(2) !important;
-            cursor: pointer !important;
-            opacity: 1 !important;
-        }
-        body.glass-theme #inp_datetime::-webkit-calendar-picker-indicator {
-            filter: invert(0) brightness(0) !important;
-        }
-    </style>
+</style>
 </head>
 <body class="glass-theme">
 
@@ -683,7 +674,7 @@
             </div>
             <div class="setup-field">
                 <label>乗車日時</label>
-                <input type="datetime-local" id="inp_datetime" onchange="searchTrain()"
+                <input type="datetime-local" id="inp_datetime" onchange="searchTrain()">
             </div>
             <!-- 時刻表自動検索結果 -->
             <div id="trainSearchResult" style="display:none;">
@@ -1730,41 +1721,47 @@ function showManualOverride() {
 function startApp() {
     const from = $('inp_from_sel') ? $('inp_from_sel').value.trim() : '';
     const to   = $('inp_to_sel')   ? $('inp_to_sel').value.trim()   : '';
+
     if (!from || !to) { alert('出発駅と到着駅を選択してください'); return; }
 
+    // 時刻表検索を実行
     searchTrain();
 
+    const trainName  = ($('inp_trainName')  && $('inp_trainName').value.trim())  || 'つるぎ';
+    const trainNum   = ($('inp_trainNum')   && $('inp_trainNum').value.trim())   || '−';
+    const trainType  = ($('inp_trainType')  && $('inp_trainType').value)         || '新幹線';
+    const datetime   = ($('inp_datetime')   && $('inp_datetime').value)          || '';
+    const weekday    = ($('inp_weekday')    && $('inp_weekday').value)           || '';
+    const seatType   = ($('inp_seatType')   && $('inp_seatType').value)          || '指定席';
+    const carNum     = parseInt($('inp_car')         && $('inp_car').value)         || 3;
+    const transfers  = parseInt($('inp_transfers')   && $('inp_transfers').value)   || 1;
+    const transitMin = parseInt($('inp_transitMin')  && $('inp_transitMin').value)  || 8;
+    const hotel      = ($('inp_hotel')        && $('inp_hotel').value.trim())        || '';
+    const hotelAddr  = ($('inp_hotelAddress') && $('inp_hotelAddress').value.trim()) || '';
+
     tripData = {
-        from, to,
-        trainName:  ($('inp_trainName')  && $('inp_trainName').value.trim())  || 'つるぎ',
-        trainNum:   ($('inp_trainNum')   && $('inp_trainNum').value.trim())   || '−',
-        trainType:  ($('inp_trainType')  && $('inp_trainType').value)         || '新幹線',
-        datetime:   ($('inp_datetime')   && $('inp_datetime').value)          || '',
-        weekday:    ($('inp_weekday')    && $('inp_weekday').value)           || '',
-        seatType:   ($('inp_seatType')   && $('inp_seatType').value)          || '指定席',
-        carNum:     parseInt(($('inp_car')       && $('inp_car').value)      ) || 3,
-        transfers:  parseInt(($('inp_transfers') && $('inp_transfers').value)) || 1,
-        transitMin: parseInt(($('inp_transitMin')&& $('inp_transitMin').value))|| 8,
-        hotel:      ($('inp_hotel')        && $('inp_hotel').value.trim())        || '',
-        hotelAddress:($('inp_hotelAddress')&& $('inp_hotelAddress').value.trim()) || '',
+        from, to, trainName, trainNum, trainType,
+        datetime, weekday, seatType, carNum, transfers, transitMin,
+        hotel, hotelAddress: hotelAddr,
         checkin: '', checkout: '',
         opts: {
-            bento:   !!($('opt_bento')   && $('opt_bento').checked),
-            omiyage: !!($('opt_omiyage') && $('opt_omiyage').checked),
-            smoking: !!($('opt_smoking') && $('opt_smoking').checked),
-            locker:  !!($('opt_locker')  && $('opt_locker').checked),
-            toilet:  !!($('opt_toilet')  && $('opt_toilet').checked),
+            bento:   $('opt_bento')   ? $('opt_bento').checked   : false,
+            omiyage: $('opt_omiyage') ? $('opt_omiyage').checked : false,
+            smoking: $('opt_smoking') ? $('opt_smoking').checked : false,
+            locker:  $('opt_locker')  ? $('opt_locker').checked  : false,
+            toilet:  $('opt_toilet')  ? $('opt_toilet').checked  : false,
         }
     };
 
     applyTripDataToMain();
     $('setupScreen').style.display = 'none';
     $('mainScreen').style.display  = 'block';
-    const isGlass = $('themeSwitchSetup') ? $('themeSwitchSetup').checked : document.body.classList.contains('glass-theme');
-    safe('themeSwitch', el => el.checked = isGlass);
-    safe('themeText',   el => el.innerText = isGlass ? 'すりガラス' : 'ダーク');
-}
 
+    const switchEl = $('themeSwitchSetup');
+    const isGlass  = switchEl ? switchEl.checked : document.body.classList.contains('glass-theme');
+    safe('themeSwitch', el => { el.checked = isGlass; });
+    safe('themeText',   el => { el.innerText = isGlass ? 'すりガラス' : 'ダーク'; });
+}
 
 // ---------- メイン画面に反映 ----------
 function applyTripDataToMain() {
