@@ -1,0 +1,24 @@
+{
+  "name": "スマート乗車ナビ ― 福井県版",
+  "short_name": "乗車ナビ",
+  "description": "北陸新幹線・敦賀乗換ナビ 福井県版",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1a1a",
+  "theme_color": "#1a6b3c",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
